@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="seoTitleTag">CamerRentals - Cameroon Rentals</title>
+  <meta name="description" id="seoDescTag" content="Find apartments, studios, offices, hotels, and land for rent across Cameroon.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --cr-brand: #0056D2;
+      --cr-brand-dark: #1d4ed8;
+      --cr-brand-light: #EFF6FF;
+      --cr-hero-from: #1e3a8a;
+      --cr-hero-via: #1e3a8a;
+      --cr-hero-to: #1e40af;
+      --cr-page: #F9FAFB;
+      --cr-card: #ffffff;
+      --cr-text: #111827;
+      --cr-accent: #10B981;
+      --hero-bg-image: url('https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1600&q=80');
+    }
+    body { background-color: var(--cr-page); color: var(--cr-text); }
+    .cr-btn { background-color: var(--cr-brand); color: white; }
+    .cr-btn:hover { background-color: var(--cr-brand-dark); }
+    .cr-text { color: var(--cr-brand); }
+    .bg-cr-brand { background-color: var(--cr-brand); }
+    .cr-bg { background-color: var(--cr-brand); }
+    .cr-bg-light { background-color: var(--cr-brand-light); }
+    .cr-card { background-color: var(--cr-card); }
+    .cr-accent { color: var(--cr-accent); }
+    .cr-accent-bg { background-color: var(--cr-accent); }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    .view-section { display: none; }
+    .view-section.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    
+    .hero-banner {
+      position: relative;
+      background-image: var(--hero-bg-image);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+    .hero-banner::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(30,58,138,0.85), rgba(30,64,175,0.9));
+      z-index: 0;
+    }
+    .hero-banner > * { position: relative; z-index: 1; }
+  </style>
+</head>
+<body class="font-sans antialiased min-h-screen flex flex-col">
+  <!-- Navbar -->
+  <nav class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex items-center justify-between h-16">
+        <a href="#home" onclick="app.router('home')" class="flex items-center gap-2 flex-shrink-0">
+          <div class="w-9 h-9 cr-bg rounded-lg flex items-center justify-center text-white font-bold text-lg">C</div>
+          <span class="text-xl font-bold cr-text hidden sm:block" data-content="brand_name">CamerRentals</span>
+        </a>
+        
+        <div class="hidden md:flex flex-1 max-w-xl mx-8">
+          <div class="flex w-full bg-gray-100 rounded-lg overflow-hidden border border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 transition">
+            <input type="text" id="searchInput" data-placeholder="search_placeholder" placeholder="City, neighborhood, or address" class="flex-1 bg-transparent px-4 py-2.5 outline-none text-sm">
+            <button onclick="app.search()" class="cr-btn px-6 py-2 font-semibold transition min-h-[40px]">Search</button>
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-2 sm:gap-3">
+          <button onclick="app.showFavorites()" class="p-2.5 hover:bg-gray-100 rounded-full relative transition min-w-[44px] min-h-[44px] flex items-center justify-center">
+            <i class="fa-regular fa-heart text-gray-700 text-xl"></i>
+            <span id="favCount" class="absolute top-0 right-0 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center hidden font-bold">0</span>
+          </button>
+          <a href="listers.html" class="hidden sm:block cr-btn px-5 py-2.5 rounded-lg font-semibold transition text-sm shadow-md" data-text="list_property_btn">List Your Property</a>
+          <button onclick="app.showMobileMenu()" class="md:hidden p-2.5 hover:bg-gray-100 rounded-full transition min-w-[44px] min-h-[44px]">
+            <i class="fa-solid fa-bars text-xl text-gray-700"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div class="md:hidden pb-3">
+        <div class="flex w-full bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+          <input type="text" id="mobileSearchInput" placeholder="Search location..." class="flex-1 bg-transparent px-4 py-2.5 outline-none text-sm">
+          <button onclick="app.search()" class="cr-btn px-4 py-2.5"><i class="fa-solid fa-search"></i></button>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HOME VIEW -->
+  <div id="view-home" class="view-section active flex-1">
+    <!-- Hero -->
+    <div class="hero-banner" id="heroBanner">
+      <div class="max-w-7xl mx-auto px-4 py-12 md:py-20">
+        <h1 class="text-3xl md:text-5xl font-bold mb-4 text-white leading-tight drop-shadow-lg" data-content="hero_title">Find Your Perfect Rental in Cameroon</h1>
+        <p class="text-blue-100 text-lg mb-8 max-w-2xl drop-shadow-md" data-content="hero_subtitle">Rooms, apartments, offices, hotels, workshops & more in Douala, Yaoundé, and across Cameroon.</p>
+        
+        <div class="cr-card rounded-xl shadow-xl p-4 md:p-5 text-gray-900">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <select id="filterCity" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 text-sm">
+              <option value="">All Cities</option>
+              <option>Douala</option><option>Yaoundé</option><option>Bamenda</option>
+              <option>Bafoussam</option><option>Kribi</option><option>Limbe</option>
+              <option>Buea</option><option>Garoua</option><option>Maroua</option>
+              <option>Ngaoundere</option><option>Ebolowa</option><option>Bertoua</option>
+            </select>
+            <select id="filterType" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 text-sm">
+              <option value="">All Types</option>
+              <option value="single_room">Single Room</option>
+              <option value="studio">Studio</option>
+              <option value="apartment">Apartment</option>
+              <option value="house">House</option>
+              <option value="villa">Villa</option>
+              <option value="hotel">Hotel</option>
+              <option value="short_stay">Short Stay</option>
+              <option value="store">Store / Boutique</option>
+              <option value="office">Office Space</option>
+              <option value="workshop">Workshop</option>
+              <option value="land">Land</option>
+            </select>
+            <select id="filterPrice" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 text-sm">
+              <option value="">Any Price</option>
+              <option value="0-100000">0 - 100k FCFA</option>
+              <option value="100000-250000">100k - 250k FCFA</option>
+              <option value="250000-500000">250k - 500k FCFA</option>
+              <option value="500000-1000000">500k - 1M FCFA</option>
+              <option value="1000000-3000000">1M - 3M FCFA</option>
+              <option value="3000000+">3M+ FCFA</option>
+            </select>
+            <button onclick="app.applyFilters()" class="w-full cr-btn font-bold py-3 rounded-lg transition shadow-md min-h-[48px]">Search Rentals</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Categories -->
+    <div class="max-w-7xl mx-auto px-4 py-6">
+      <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide" id="categoryPills"></div>
+    </div>
+
+    <!-- Results -->
+    <div class="max-w-7xl mx-auto px-4 pb-16">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl md:text-2xl font-bold" id="resultsTitle" data-content="featured_title">Featured Rentals</h2>
+        <span class="text-gray-500 text-sm font-medium" id="resultsCount">Loading...</span>
+      </div>
+      <div id="listingsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6"></div>
+      <div id="emptyState" class="hidden text-center py-20">
+        <i class="fa-solid fa-house-circle-xmark text-6xl text-gray-300 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-600" data-content="empty_state_title">No properties found</h3>
+        <p class="text-gray-500 mt-2" data-content="empty_state_text">Try adjusting your filters or search criteria.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CATEGORY VIEW -->
+  <div id="view-category" class="view-section flex-1">
+    <div class="hero-banner relative" id="catHeroBanner">
+      <div class="max-w-7xl mx-auto px-4 py-8 md:py-12 flex items-center gap-4">
+        <button onclick="app.router('home')" class="w-10 h-10 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white hover:bg-white/30 transition flex-shrink-0">
+          <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <div>
+          <h1 id="catTitle" class="text-2xl md:text-4xl font-bold text-white drop-shadow-lg">Category</h1>
+          <p id="catSubtitle" class="text-blue-100 mt-1 drop-shadow-md">Browse all rentals in this category</p>
+        </div>
+      </div>
+    </div>
+    <div class="max-w-7xl mx-auto px-4 py-6 pb-16">
+      <div class="flex items-center justify-between mb-6">
+        <span id="catCount" class="text-gray-500 text-sm font-medium">0 rentals</span>
+        <select onchange="app.sortCategory(this.value)" class="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none bg-white">
+          <option value="newest">Newest First</option>
+          <option value="price-low">Price: Low to High</option>
+          <option value="price-high">Price: High to Low</option>
+        </select>
+      </div>
+      <div id="categoryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6"></div>
+      <div id="catEmpty" class="hidden text-center py-20">
+        <i class="fa-solid fa-folder-open text-6xl text-gray-300 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-600">No rentals in this category yet</h3>
+        <button onclick="app.router('home')" class="mt-4 cr-btn px-6 py-2.5 rounded-lg font-semibold text-sm">Browse All Rentals</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-gray-400 py-12 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8">
+      <div class="col-span-2 md:col-span-1">
+        <h3 class="text-white font-bold text-lg mb-4" data-content="brand_name">CamerRentals</h3>
+        <p class="text-sm leading-relaxed" data-content="footer_about">Cameroon's premier rental marketplace. Find your next home, office, or commercial space.</p>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Property Types</h4>
+        <ul class="space-y-2 text-sm">
+          <li><a href="#category/apartment" onclick="app.router('category','apartment')" class="hover:text-white transition">Apartments</a></li>
+          <li><a href="#category/single_room" onclick="app.router('category','single_room')" class="hover:text-white transition">Single Rooms</a></li>
+          <li><a href="#category/office" onclick="app.router('category','office')" class="hover:text-white transition">Office Spaces</a></li>
+          <li><a href="#category/store" onclick="app.router('category','store')" class="hover:text-white transition">Commercial</a></li>
+          <li><a href="#category/hotel" onclick="app.router('category','hotel')" class="hover:text-white transition">Hotels</a></li>
+          <li><a href="#category/short_stay" onclick="app.router('category','short_stay')" class="hover:text-white transition">Short Stay</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Top Cities</h4>
+        <ul class="space-y-2 text-sm">
+          <li><a href="#" onclick="app.filterByCity('Douala')" class="hover:text-white transition">Douala</a></li>
+          <li><a href="#" onclick="app.filterByCity('Yaoundé')" class="hover:text-white transition">Yaoundé</a></li>
+          <li><a href="#" onclick="app.filterByCity('Bamenda')" class="hover:text-white transition">Bamenda</a></li>
+          <li><a href="#" onclick="app.filterByCity('Kribi')" class="hover:text-white transition">Kribi</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Contact</h4>
+        <p class="text-sm" data-content="contact_email">support@camerrrentals.cm</p>
+        <p class="text-sm mt-2" data-content="contact_phone">+237 6XX XX XX XX</p>
+        <div class="flex gap-3 mt-4">
+          <a id="footerWhatsApp" href="https://wa.me/237677777777" class="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition"><i class="fa-brands fa-whatsapp text-green-400"></i></a>
+          <a href="#" class="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition"><i class="fa-brands fa-facebook-f text-blue-400"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="max-w-7xl mx-auto px-4 mt-8 pt-8 border-t border-gray-800 text-sm text-center text-gray-500" data-content="copyright_text">
+      © 2026 CamerRentals. All rights reserved.
+    </div>
+  </footer>
+
+  <!-- Property Detail Modal -->
+  <div id="detailModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="app.closeDetail()"></div>
+    <div class="absolute inset-0 md:inset-4 lg:inset-10 cr-card md:rounded-2xl overflow-hidden flex flex-col md:flex-row shadow-2xl animate-fade-in">
+      <button onclick="app.closeDetail()" class="absolute top-3 right-3 z-20 w-10 h-10 bg-white/90 backdrop-blur rounded-full shadow-lg flex items-center justify-center hover:bg-white transition">
+        <i class="fa-solid fa-xmark text-xl text-gray-800"></i>
+      </button>
+      <div class="w-full md:w-1/2 h-64 md:h-full bg-gray-100 relative flex-shrink-0">
+        <img id="detailImage" src="" class="w-full h-full object-cover">
+        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6 md:hidden">
+          <span id="detailPriceMobile" class="text-white font-bold text-2xl"></span>
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto p-5 md:p-8 lg:p-10 bg-white">
+        <div id="detailContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact Modal -->
+  <div id="contactModal" class="fixed inset-0 z-50 hidden flex items-end md:items-center justify-center p-0 md:p-4">
+    <div class="absolute inset-0 bg-black/60" onclick="app.closeContact()"></div>
+    <div class="relative bg-white rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-md p-6 animate-slide-up">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-xl font-bold text-gray-900" data-content="contact_modal_title">Contact Agent</h3>
+        <button onclick="app.closeContact()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <form onsubmit="app.submitContact(event)" id="contactForm" class="space-y-4">
+        <input type="hidden" id="contactPropertyId">
+        <input type="text" id="contactName" placeholder="Your Full Name" required class="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 transition text-sm">
+        <input type="email" id="contactEmail" placeholder="Email Address" required class="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 transition text-sm">
+        <input type="tel" id="contactPhone" placeholder="Phone (+237 6XX XX XX XX)" class="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 transition text-sm">
+        <textarea id="contactMessage" rows="3" placeholder="I'm interested in this property..." required class="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-100 transition text-sm"></textarea>
+        <button type="submit" class="w-full cr-btn font-bold py-3.5 rounded-lg transition shadow-lg min-h-[48px]">Send Message</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Favorites Drawer -->
+  <div id="favDrawer" class="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out">
+    <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-white">
+      <h3 class="text-lg font-bold text-gray-900" data-content="favorites_title">Favorites</h3>
+      <button onclick="app.hideFavorites()" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+    </div>
+    <div id="favList" class="overflow-y-auto h-[calc(100vh-80px)] p-4 space-y-3 bg-gray-50"></div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://your-project.supabase.co';
+    const SUPABASE_ANON_KEY = 'your-anon-key';
+    let supabaseClient;
+
+    const TYPE_META = {
+      single_room: {label:'Single Room', icon:'fa-bed', desc:'Affordable single rooms across Cameroon. Perfect for students and workers.'},
+      studio: {label:'Studio', icon:'fa-building', desc:'Self-contained studios with kitchenette and private bathroom.'},
+      apartment: {label:'Apartment', icon:'fa-city', desc:'1-4 bedroom apartments in prime neighborhoods.'},
+      house: {label:'House', icon:'fa-house', desc:'Standalone houses with yard space for families.'},
+      villa: {label:'Villa', icon:'fa-landmark', desc:'Luxury villas with premium amenities and security.'},
+      hotel: {label:'Hotel', icon:'fa-hotel', desc:'Hotel rooms and suites for short and long stays.'},
+      short_stay: {label:'Short Stay', icon:'fa-calendar-day', desc:'Fully furnished apartments for daily and weekly rentals.'},
+      store: {label:'Store / Boutique', icon:'fa-store', desc:'Retail shops and commercial spaces in high-traffic areas.'},
+      office: {label:'Office Space', icon:'fa-briefcase', desc:'Professional offices with internet, AC, and parking.'},
+      workshop: {label:'Workshop', icon:'fa-industry', desc:'Industrial workshops and warehouses with power and loading.'},
+      land: {label:'Land', icon:'fa-map', desc:'Plots of land for construction or agriculture.'}
+    };
+
+    const DEMO_LISTINGS = [
+      { id:'demo-1', title:'Modern Studio in Bonapriso', description:'Fully furnished studio in Bonapriso with AC, high-speed internet, and 24/7 security guard. Close to restaurants and supermarkets.', property_type:'studio', listing_type:'rent', price:150000, currency:'XAF', city:'Douala', quarter:'Bonapriso', address:'Rue du Studio, Bonapriso', bedrooms:1, bathrooms:1, area_sqm:45, status:'active', featured_image:'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800', amenities:['AC','Internet','Security','Parking'], contact_phone:'+237 677 77 77 77', contact_whatsapp:'+237 677 77 77 77', is_featured:true },
+      { id:'demo-2', title:'Luxury 3-Bed Apartment - Bastos', description:'Spacious 3-bedroom in prestigious Bastos. Generator, garden, parking. Perfect for families or diplomats. Close to French Embassy.', property_type:'apartment', listing_type:'rent', price:450000, currency:'XAF', city:'Yaoundé', quarter:'Bastos', address:'Avenue Bastos, near French Embassy', bedrooms:3, bathrooms:2, area_sqm:180, status:'active', featured_image:'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800', amenities:['AC','Generator','Parking','Garden','Furnished'], contact_phone:'+237 699 99 99 99', contact_whatsapp:'+237 699 99 99 99', is_featured:true },
+      { id:'demo-3', title:'Affordable Single Room - Deido', description:'Clean single room with shared bathroom. Close to public transport and Marché Deido. Ideal for students.', property_type:'single_room', listing_type:'rent', price:75000, currency:'XAF', city:'Douala', quarter:'Deido', address:'Rue Deido, near Marché Deido', bedrooms:1, bathrooms:1, area_sqm:20, status:'active', featured_image:'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=800', amenities:['Fan','Shared Kitchen'], contact_phone:'+237 655 55 55 55', contact_whatsapp:'+237 655 55 55 55', is_featured:false },
+      { id:'demo-4', title:'Prime Office Space - Akwa', description:'Modern office in Akwa business district. Reception, meeting room, high-speed fiber. Ready to move in.', property_type:'office', listing_type:'rent', price:300000, currency:'XAF', city:'Douala', quarter:'Akwa', address:'Boulevard de la Liberté, Akwa', bedrooms:0, bathrooms:2, area_sqm:120, status:'active', featured_image:'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800', amenities:['AC','Internet','Parking','Reception','Meeting Room'], contact_phone:'+237 666 66 66 66', contact_whatsapp:'+237 666 66 66 66', is_featured:true },
+      { id:'demo-5', title:'Commercial Store - Makepe', description:'High-traffic retail space near Total Makepe. Perfect for supermarket, boutique, or restaurant. Corner location.', property_type:'store', listing_type:'rent', price:200000, currency:'XAF', city:'Douala', quarter:'Makepe', address:'Rue Makepe, near Total Makepe', bedrooms:0, bathrooms:1, area_sqm:60, status:'active', featured_image:'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800', amenities:['Storage','Security','Parking'], contact_phone:'+237 688 88 88 88', contact_whatsapp:'+237 688 88 88 88', is_featured:false },
+      { id:'demo-6', title:'Beachfront Hotel Room - Kribi', description:'Stunning ocean view room with pool, restaurant, and direct beach access. Daily and weekly rates available.', property_type:'hotel', listing_type:'rent', price:35000, currency:'XAF', city:'Kribi', quarter:'Kribi Plage', address:'Avenue de la Plage, Kribi', bedrooms:1, bathrooms:1, area_sqm:35, status:'active', featured_image:'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800', amenities:['Pool','AC','Restaurant','Beach Access','WiFi'], contact_phone:'+237 677 11 11 11', contact_whatsapp:'+237 677 11 11 11', is_featured:true },
+      { id:'demo-7', title:'Short Stay Apartment - Odza', description:'Fully equipped short-term apartment near Nsimalen Airport. Ideal for business travelers. Airport pickup available.', property_type:'short_stay', listing_type:'rent', price:25000, currency:'XAF', city:'Yaoundé', quarter:'Odza', address:'Rue Odza, near Nsimalen Airport', bedrooms:2, bathrooms:1, area_sqm:70, status:'active', featured_image:'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800', amenities:['Furnished','Kitchen','AC','WiFi','Airport Shuttle'], contact_phone:'+237 699 22 22 22', contact_whatsapp:'+237 699 22 22 22', is_featured:false },
+      { id:'demo-8', title:'Industrial Workshop - Bonaberi', description:'Large workshop with 3-phase power, loading dock, and 24/7 security. Near port.', property_type:'workshop', listing_type:'rent', price:180000, currency:'XAF', city:'Douala', quarter:'Bonaberi', address:'Zone Industrielle, Bonaberi', bedrooms:0, bathrooms:2, area_sqm:400, status:'active', featured_image:'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800', amenities:['3-Phase Power','Loading Dock','Security','Parking'], contact_phone:'+237 666 33 33 33', contact_whatsapp:'+237 666 33 33 33', is_featured:false },
+      { id:'demo-9', title:'Family House - Buea', description:'Quiet residential house in Buea near the university. Large compound, fruit trees, parking for 3 cars.', property_type:'house', listing_type:'rent', price:280000, currency:'XAF', city:'Buea', quarter:'Molyko', address:'Molyko, near University of Buea', bedrooms:4, bathrooms:3, area_sqm:250, status:'active', featured_image:'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800', amenities:['AC','Parking','Garden','Furnished','Security'], contact_phone:'+237 677 44 44 44', contact_whatsapp:'+237 677 44 44 44', is_featured:false },
+      { id:'demo-10', title:'Villa with Pool - Limbe', description:'Ocean-view villa in Limbe with private pool, gazebo, and staff quarters. Perfect for expats.', property_type:'villa', listing_type:'rent', price:850000, currency:'XAF', city:'Limbe', quarter:'Down Beach', address:'Down Beach, Limbe', bedrooms:5, bathrooms:4, area_sqm:400, status:'active', featured_image:'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800', amenities:['Pool','AC','Parking','Garden','Security','Furnished','Ocean View'], contact_phone:'+237 699 55 55 55', contact_whatsapp:'+237 699 55 55 55', is_featured:true },
+      { id:'demo-11', title:'Boutique Space - Bamenda', description:'Newly built boutique in commercial district of Bamenda. Good lighting and display windows.', property_type:'store', listing_type:'rent', price:120000, currency:'XAF', city:'Bamenda', quarter:'Commercial Ave', address:'Commercial Avenue, Bamenda', bedrooms:0, bathrooms:1, area_sqm:40, status:'active', featured_image:'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800', amenities:['Storage','Security'], contact_phone:'+237 677 66 66 66', contact_whatsapp:'+237 677 66 66 66', is_featured:false },
+      { id:'demo-12', title:'Plot of Land - Yaoundé', description:'500m² plot in secure gated area. Titre foncier available. Ready for construction.', property_type:'land', listing_type:'rent', price:150000, currency:'XAF', city:'Yaoundé', quarter:'Essos', address:'Essos, near Oyom-Abang', bedrooms:0, bathrooms:0, area_sqm:500, status:'active', featured_image:'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800', amenities:['Titre Foncier','Gated','Water Access'], contact_phone:'+237 677 88 88 88', contact_whatsapp:'+237 677 88 88 88', is_featured:false }
+    ];
+
+    const app = {
+      listings: [], favorites: [], currentFilter: { city:'', type:'', price:'', search:'' }, currentCategory: '', categorySort: 'newest', siteContent: {},
+
+      init() {
+        this.loadTheme();
+        this.loadSiteContent(); // Load content first
+        if (SUPABASE_URL.includes('your-project')) {
+          console.log('Supabase not configured - using demo data');
+          this.listings = DEMO_LISTINGS;
+          this.initRouter();
+          this.renderProperties();
+          this.renderCategories();
+          this.loadFavorites();
+          return;
+        }
+        try {
+          supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          this.loadProperties();
+          this.setupRealtime();
+        } catch(e) {
+          console.error('Supabase init failed:', e);
+          this.listings = DEMO_LISTINGS;
+          this.renderProperties();
+        }
+        this.initRouter();
+        this.renderCategories();
+        this.loadFavorites();
+      },
+
+      async loadSiteContent() {
+        let content = null;
+        // Try Supabase first
+        if (!SUPABASE_URL.includes('your-project')) {
+          try {
+            supabaseClient = supabaseClient || supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            const { data } = await supabaseClient.from('settings').select('value').eq('key','site_content').single();
+            if (data?.value) { content = data.value; localStorage.setItem('camrent_site_content', JSON.stringify(content)); }
+          } catch(e) {}
+        }
+        // Fallback localStorage
+        if (!content) content = JSON.parse(localStorage.getItem('camrent_site_content') || 'null');
+        // Fallback defaults
+        const defaults = {
+          hero_title: "Find Your Perfect Rental in Cameroon",
+          hero_subtitle: "Rooms, apartments, offices, hotels, workshops & more in Douala, Yaoundé, and across Cameroon.",
+          hero_image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1600&q=80",
+          brand_name: "CamerRentals",
+          featured_title: "Featured Rentals",
+          footer_about: "Cameroon's premier rental marketplace. Find your next home, office, or commercial space.",
+          contact_email: "support@camerrrentals.cm",
+          contact_phone: "+237 6XX XX XX XX",
+          contact_whatsapp: "+237 677777777",
+          seo_title: "CamerRentals - Cameroon Rentals",
+          seo_description: "Find apartments, studios, offices, hotels, and land for rent across Cameroon. Douala, Yaoundé, Bamenda & more.",
+          empty_state_title: "No properties found",
+          empty_state_text: "Try adjusting your filters or search criteria.",
+          favorites_title: "Favorites",
+          favorites_empty: "No favorites yet",
+          contact_modal_title: "Contact Agent",
+          contact_modal_subtitle: "Send a message and the agent will reply shortly.",
+          search_placeholder: "City, neighborhood, or address",
+          list_property_btn: "List Your Property",
+          copyright_text: "© 2026 CamerRentals. All rights reserved."
+        };
+        this.siteContent = {...defaults, ...content};
+
+        // Apply to DOM
+        document.querySelectorAll('[data-content]').forEach(el => {
+          const key = el.getAttribute('data-content');
+          if (this.siteContent[key]) {
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.placeholder = this.siteContent[key];
+            else if (el.hasAttribute('data-placeholder')) el.placeholder = this.siteContent[key];
+            else el.textContent = this.siteContent[key];
+          }
+        });
+
+        // Apply SEO
+        if (this.siteContent.seo_title) {
+          document.getElementById('seoTitleTag').textContent = this.siteContent.seo_title;
+          document.title = this.siteContent.seo_title;
+        }
+        if (this.siteContent.seo_description) document.getElementById('seoDescTag').content = this.siteContent.seo_description;
+
+        // Apply hero image
+        if (this.siteContent.hero_image) {
+          document.documentElement.style.setProperty('--hero-bg-image', `url('${this.siteContent.hero_image}')`);
+        }
+
+        // Apply placeholders
+        document.querySelectorAll('[data-placeholder]').forEach(el => {
+          const key = el.getAttribute('data-placeholder');
+          if (this.siteContent[key]) el.placeholder = this.siteContent[key];
+        });
+
+        // Apply button/link texts
+        document.querySelectorAll('[data-text]').forEach(el => {
+          const key = el.getAttribute('data-text');
+          if (this.siteContent[key]) el.textContent = this.siteContent[key];
+        });
+
+        // Update WhatsApp link
+        const wa = this.siteContent.contact_whatsapp?.replace(/\D/g,'');
+        if (wa) {
+          const footerWa = document.getElementById('footerWhatsApp');
+          if (footerWa) footerWa.href = `https://wa.me/${wa}`;
+        }
+      },
+
+      async loadTheme() {
+        let theme = JSON.parse(localStorage.getItem('camrent_theme') || 'null');
+        if (!theme) theme = { brand:'#0056D2', brandDark:'#1d4ed8', brandLight:'#EFF6FF', heroFrom:'#1e3a8a', heroVia:'#1e3a8a', heroTo:'#1e40af', page:'#F9FAFB', card:'#ffffff', text:'#111827', accent:'#10B981' };
+        const r = document.documentElement;
+        r.style.setProperty('--cr-brand', theme.brand);
+        r.style.setProperty('--cr-brand-dark', theme.brandDark);
+        r.style.setProperty('--cr-brand-light', theme.brandLight);
+        r.style.setProperty('--cr-hero-from', theme.heroFrom);
+        r.style.setProperty('--cr-hero-via', theme.heroVia);
+        r.style.setProperty('--cr-hero-to', theme.heroTo);
+        r.style.setProperty('--cr-page', theme.page);
+        r.style.setProperty('--cr-card', theme.card);
+        r.style.setProperty('--cr-text', theme.text);
+        r.style.setProperty('--cr-accent', theme.accent);
+      },
+
+      async loadProperties() {
+        try {
+          const { data, error } = await supabaseClient.from('properties').select('*').eq('status','active').order('created_at',{ascending:false});
+          if (error) throw error;
+          this.listings = (data && data.length > 0) ? data : DEMO_LISTINGS;
+          this.handleRoute();
+        } catch(e) {
+          console.error('Load error:', e);
+          this.listings = DEMO_LISTINGS;
+          this.handleRoute();
+        }
+      },
+
+      setupRealtime() {
+        if (!supabaseClient) return;
+        supabaseClient.channel('public:properties')
+          .on('postgres_changes', { event:'*', schema:'public', table:'properties' }, () => this.loadProperties())
+          .subscribe();
+      },
+
+      initRouter() {
+        window.addEventListener('hashchange', () => this.handleRoute());
+        this.handleRoute();
+      },
+
+      handleRoute() {
+        const hash = window.location.hash || '#home';
+        if (hash.startsWith('#category/')) {
+          const type = hash.replace('#category/','');
+          this.showCategory(type);
+        } else {
+          this.showView('view-home');
+          this.renderProperties();
+        }
+      },
+
+      router(view, param) {
+        if (view === 'home') { window.location.hash = 'home'; }
+        else if (view === 'category' && param) { window.location.hash = `category/${param}`; }
+        this.handleRoute();
+      },
+
+      showView(id) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        const el = document.getElementById(id);
+        if (el) el.classList.add('active');
+        window.scrollTo(0,0);
+      },
+
+      showCategory(type) {
+        this.currentCategory = type;
+        const meta = TYPE_META[type] || {label:type.replace('_',' '), icon:'fa-building', desc:'Browse rentals'};
+        document.getElementById('catTitle').textContent = meta.label + 's';
+        document.getElementById('catSubtitle').textContent = meta.desc;
+        this.showView('view-category');
+        this.renderCategory();
+      },
+
+      renderCategory() {
+        const grid = document.getElementById('categoryGrid');
+        const empty = document.getElementById('catEmpty');
+        const countEl = document.getElementById('catCount');
+        let filtered = this.listings.filter(p => p.property_type === this.currentCategory && p.status === 'active');
+        
+        if (this.categorySort === 'price-low') filtered.sort((a,b) => a.price - b.price);
+        else if (this.categorySort === 'price-high') filtered.sort((a,b) => b.price - a.price);
+        else filtered.sort((a,b) => new Date(b.created_at||0) - new Date(a.created_at||0));
+
+        countEl.textContent = `${filtered.length} rental${filtered.length!==1?'s':''}`;
+        if (filtered.length === 0) { grid.innerHTML=''; empty.classList.remove('hidden'); return; }
+        empty.classList.add('hidden');
+        grid.innerHTML = filtered.map(p => this.renderCard(p)).join('');
+      },
+
+      sortCategory(val) { this.categorySort = val; this.renderCategory(); },
+
+      renderCategories() {
+        const types = Object.entries(TYPE_META).map(([id,m]) => ({id,...m}));
+        document.getElementById('categoryPills').innerHTML = types.map(t => `
+          <a href="#category/${t.id}" onclick="app.router('category','${t.id}')" class="flex items-center gap-2 px-4 py-2.5 cr-card border border-gray-200 rounded-full whitespace-nowrap hover:border-blue-500 hover:cr-text transition shadow-sm text-sm font-medium min-h-[44px]">
+            <i class="fa-solid ${t.icon} cr-text"></i> ${t.label}
+          </a>
+        `).join('');
+      },
+
+      renderCard(p) {
+        const isFav = this.favorites.includes(p.id);
+        const nightLabel = ['hotel','short_stay'].includes(p.property_type) ? '/night' : '/month';
+        const cleanPhone = (p.contact_phone || '').replace(/\D/g,'');
+        const cleanWhatsApp = (p.contact_whatsapp || p.contact_phone || '').replace(/\D/g,'');
+        return `
+        <div class="cr-card rounded-xl shadow-sm hover:shadow-xl transition border border-gray-100 overflow-hidden group cursor-pointer" onclick="app.openDetail('${p.id}')">
+          <div class="relative h-56 overflow-hidden">
+            <img src="${p.featured_image || 'https://via.placeholder.com/800x600?text=No+Image'}" class="w-full h-full object-cover group-hover:scale-105 transition duration-700" loading="lazy">
+            <div class="absolute top-3 right-3">
+              <button onclick="event.stopPropagation(); app.toggleFavorite('${p.id}')" class="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-md hover:scale-110 transition min-w-[44px] min-h-[44px]">
+                <i class="${isFav?'fa-solid text-red-500':'fa-regular text-gray-600'} fa-heart text-lg"></i>
+              </button>
+            </div>
+            ${p.is_featured ? '<div class="absolute top-3 left-3 cr-bg text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">FEATURED</div>' : ''}
+            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-4 pt-12">
+              <span class="text-white font-bold text-2xl drop-shadow">${p.price.toLocaleString()} <span class="text-sm font-normal opacity-90">FCFA${nightLabel}</span></span>
+            </div>
+          </div>
+          <div class="p-5">
+            <h3 class="font-bold text-lg text-gray-900 leading-tight mb-1 group-hover:cr-text transition line-clamp-2">${p.title}</h3>
+            <p class="text-gray-500 text-sm mb-3 flex items-center gap-1.5">
+              <i class="fa-solid fa-location-dot cr-text text-xs"></i>
+              ${p.quarter ? p.quarter+', ' : ''}${p.city}
+            </p>
+            <div class="flex items-center gap-4 text-sm text-gray-600 mb-4">
+              ${p.bedrooms ? `<span class="flex items-center gap-1"><i class="fa-solid fa-bed text-gray-400"></i> ${p.bedrooms}</span>` : ''}
+              ${p.bathrooms ? `<span class="flex items-center gap-1"><i class="fa-solid fa-bath text-gray-400"></i> ${p.bathrooms}</span>` : ''}
+              ${p.area_sqm ? `<span class="flex items-center gap-1"><i class="fa-solid fa-ruler-combined text-gray-400"></i> ${p.area_sqm}m²</span>` : ''}
+            </div>
+            <div class="flex items-center justify-between pt-3 border-t border-gray-100 gap-2">
+              <span class="text-xs font-bold cr-text cr-bg-light px-3 py-1.5 rounded-full uppercase tracking-wide">${TYPE_META[p.property_type]?.label || p.property_type}</span>
+              <div class="flex items-center gap-2">
+                ${cleanPhone ? `<a href="tel:${p.contact_phone}" onclick="event.stopPropagation()" class="w-9 h-9 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 transition border border-green-200" title="Call"><i class="fa-solid fa-phone text-sm"></i></a>` : ''}
+                ${cleanWhatsApp ? `<a href="https://wa.me/${cleanWhatsApp}" target="_blank" onclick="event.stopPropagation()" class="w-9 h-9 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-100 transition border border-green-200" title="WhatsApp"><i class="fa-brands fa-whatsapp text-lg"></i></a>` : ''}
+                <button onclick="event.stopPropagation(); app.openContact('${p.id}')" class="cr-btn px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm min-h-[36px]">Contact</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      },
+
+      renderProperties() {
+        const grid = document.getElementById('listingsGrid');
+        const empty = document.getElementById('emptyState');
+        const count = document.getElementById('resultsCount');
+
+        let filtered = this.listings;
+        if (this.currentFilter.city) filtered = filtered.filter(p => p.city === this.currentFilter.city);
+        if (this.currentFilter.type) filtered = filtered.filter(p => p.property_type === this.currentFilter.type);
+        if (this.currentFilter.price) {
+          const [min,max] = this.currentFilter.price.split('-').map(v => v.replace('+','').replace(/,/g,''));
+          filtered = filtered.filter(p => {
+            if (max && p.price > parseInt(max)) return false;
+            return p.price >= parseInt(min);
+          });
+        }
+        if (this.currentFilter.search) {
+          const s = this.currentFilter.search.toLowerCase();
+          filtered = filtered.filter(p => (p.title+p.city+(p.quarter||'')).toLowerCase().includes(s));
+        }
+
+        count.textContent = `${filtered.length} rental${filtered.length!==1?'s':''}`;
+        if (filtered.length === 0) { grid.innerHTML=''; empty.classList.remove('hidden'); return; }
+        empty.classList.add('hidden');
+        grid.innerHTML = filtered.map(p => this.renderCard(p)).join('');
+      },
+
+      filterByType(type) { this.currentFilter.type = type==='all'?'':type; this.renderProperties(); document.getElementById('resultsTitle').scrollIntoView({behavior:'smooth', block:'start'}); },
+      filterByCity(city) { this.currentFilter.city = city; document.getElementById('filterCity').value = city; this.renderProperties(); },
+      applyFilters() { this.currentFilter.city = document.getElementById('filterCity').value; this.currentFilter.type = document.getElementById('filterType').value; this.currentFilter.price = document.getElementById('filterPrice').value; this.renderProperties(); },
+      search() { const val = document.getElementById('searchInput')?.value || document.getElementById('mobileSearchInput')?.value || ''; this.currentFilter.search = val; this.renderProperties(); },
+
+      openDetail(id) {
+        const p = this.listings.find(x => x.id === id) || DEMO_LISTINGS.find(x => x.id === id);
+        if (!p) return;
+        const nightLabel = ['hotel','short_stay'].includes(p.property_type) ? '/night' : '/month';
+        const cleanPhone = (p.contact_phone || '').replace(/\D/g,'');
+        const cleanWhatsApp = (p.contact_whatsapp || p.contact_phone || '').replace(/\D/g,'');
+
+        document.getElementById('detailImage').src = p.featured_image || '';
+        document.getElementById('detailPriceMobile').textContent = p.price.toLocaleString() + ' FCFA' + nightLabel;
+        document.getElementById('detailContent').innerHTML = `
+          <div class="flex flex-wrap items-center gap-2 mb-4">
+            <span class="cr-bg-light cr-text text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">${TYPE_META[p.property_type]?.label || p.property_type}</span>
+            ${p.is_featured ? '<span class="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full">Featured</span>' : ''}
+            <span class="bg-gray-100 text-gray-700 text-xs font-bold px-3 py-1 rounded-full">${p.status==='active'?'Available':'Pending'}</span>
+          </div>
+          <h2 class="text-2xl md:text-3xl font-bold mb-2 text-gray-900">${p.title}</h2>
+          <p class="text-2xl font-bold cr-text mb-6 hidden md:block">${p.price.toLocaleString()} FCFA<span class="text-base font-normal text-gray-500 ml-1">${nightLabel}</span></p>
+          
+          <div class="flex flex-wrap gap-6 mb-8 pb-6 border-b border-gray-100">
+            ${p.bedrooms!==null&&p.bedrooms!==undefined ? `<div class="flex items-center gap-3"><div class="w-10 h-10 cr-bg-light rounded-lg flex items-center justify-center cr-text"><i class="fa-solid fa-bed"></i></div><div><p class="font-bold text-lg leading-none">${p.bedrooms}</p><p class="text-xs text-gray-500 mt-1">Bedrooms</p></div></div>` : ''}
+            ${p.bathrooms!==null&&p.bathrooms!==undefined ? `<div class="flex items-center gap-3"><div class="w-10 h-10 cr-bg-light rounded-lg flex items-center justify-center cr-text"><i class="fa-solid fa-bath"></i></div><div><p class="font-bold text-lg leading-none">${p.bathrooms}</p><p class="text-xs text-gray-500 mt-1">Bathrooms</p></div></div>` : ''}
+            ${p.area_sqm ? `<div class="flex items-center gap-3"><div class="w-10 h-10 cr-bg-light rounded-lg flex items-center justify-center cr-text"><i class="fa-solid fa-ruler-combined"></i></div><div><p class="font-bold text-lg leading-none">${p.area_sqm}</p><p class="text-xs text-gray-500 mt-1">m²</p></div></div>` : ''}
+          </div>
+          
+          <div class="mb-8">
+            <h4 class="font-bold text-lg mb-3 text-gray-900">Description</h4>
+            <p class="text-gray-600 leading-relaxed">${p.description || 'No description available.'}</p>
+          </div>
+          
+          <div class="mb-8">
+            <h4 class="font-bold text-lg mb-3 text-gray-900">Location</h4>
+            <p class="text-gray-600 flex items-start gap-2"><i class="fa-solid fa-location-dot cr-text mt-1"></i><span>${p.address || ''}${p.address?'<br>':''}${p.quarter ? p.quarter + ', ' : ''}${p.city}</span></p>
+          </div>
+          
+          ${p.amenities && p.amenities.length ? `
+          <div class="mb-8">
+            <h4 class="font-bold text-lg mb-3 text-gray-900">Amenities</h4>
+            <div class="flex flex-wrap gap-2">
+              ${p.amenities.map(a => `<span class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200">${a}</span>`).join('')}
+            </div>
+          </div>` : ''}
+          
+          <div class="cr-bg-light rounded-xl p-6 mb-8 border border-gray-100">
+            <h4 class="font-bold text-lg mb-4 text-gray-900">Contact Agent</h4>
+            <div class="space-y-3">
+              ${p.contact_phone ? `<p class="flex items-center gap-3"><i class="fa-solid fa-phone cr-text w-5 text-center"></i><a href="tel:${p.contact_phone}" class="cr-text font-semibold hover:underline">${p.contact_phone}</a></p>` : ''}
+              ${p.contact_whatsapp ? `<p class="flex items-center gap-3"><i class="fa-brands fa-whatsapp text-green-600 w-5 text-center text-lg"></i><a href="https://wa.me/${cleanWhatsApp}" target="_blank" class="text-green-700 font-semibold hover:underline">${p.contact_whatsapp}</a></p>` : ''}
+            </div>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            ${cleanPhone ? `<a href="tel:${p.contact_phone}" class="flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition text-lg shadow-lg min-h-[56px]"><i class="fa-solid fa-phone"></i> Call Now</a>` : ''}
+            ${cleanWhatsApp ? `<a href="https://wa.me/${cleanWhatsApp}" target="_blank" class="flex items-center justify-center gap-2 bg-green-500 text-white font-bold py-4 rounded-xl hover:bg-green-600 transition text-lg shadow-lg min-h-[56px]"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>` : ''}
+          </div>
+          
+          <button onclick="app.openContact('${p.id}')" class="w-full cr-btn font-bold py-4 rounded-xl transition text-lg shadow-xl min-h-[56px]">Send Message</button>
+        `;
+        document.getElementById('detailModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+      },
+
+      closeDetail() { document.getElementById('detailModal').classList.add('hidden'); document.body.style.overflow = ''; },
+      openContact(id) { document.getElementById('contactPropertyId').value = id; document.getElementById('contactModal').classList.remove('hidden'); },
+      closeContact() { document.getElementById('contactModal').classList.add('hidden'); document.getElementById('contactForm').reset(); },
+
+      async submitContact(e) {
+        e.preventDefault();
+        const data = { property_id: document.getElementById('contactPropertyId').value, sender_name: document.getElementById('contactName').value, sender_email: document.getElementById('contactEmail').value, sender_phone: document.getElementById('contactPhone').value, message: document.getElementById('contactMessage').value };
+        if (supabaseClient) { try { await supabaseClient.from('inquiries').insert(data); } catch(err) { console.error(err); } }
+        alert('Message sent successfully! The agent will contact you shortly.');
+        this.closeContact();
+      },
+
+      toggleFavorite(id) { const idx = this.favorites.indexOf(id); if (idx > -1) this.favorites.splice(idx, 1); else this.favorites.push(id); this.saveFavorites(); this.renderProperties(); this.renderCategory(); this.renderFavorites(); },
+      saveFavorites() { localStorage.setItem('camrent_favorites', JSON.stringify(this.favorites)); this.updateFavCount(); },
+      loadFavorites() { this.favorites = JSON.parse(localStorage.getItem('camrent_favorites') || '[]'); this.updateFavCount(); },
+      updateFavCount() { const badge = document.getElementById('favCount'); if (this.favorites.length > 0) { badge.textContent = this.favorites.length; badge.classList.remove('hidden'); } else badge.classList.add('hidden'); },
+      showFavorites() { this.renderFavorites(); document.getElementById('favDrawer').classList.remove('translate-x-full'); },
+      hideFavorites() { document.getElementById('favDrawer').classList.add('translate-x-full'); },
+
+      renderFavorites() {
+        const container = document.getElementById('favList');
+        if (!this.favorites.length) { container.innerHTML = `<div class="text-center py-12 text-gray-500"><i class="fa-regular fa-heart text-4xl mb-3 text-gray-300"></i><p>${this.siteContent.favorites_empty || 'No favorites yet'}</p></div>`; return; }
+        const favs = this.favorites.map(id => this.listings.find(p => p.id === id) || DEMO_LISTINGS.find(p => p.id === id)).filter(Boolean);
+        container.innerHTML = favs.map(p => `
+          <div class="flex gap-3 cr-card rounded-xl p-3 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition" onclick="app.openDetail('${p.id}'); app.hideFavorites()">
+            <img src="${p.featured_image}" class="w-20 h-20 rounded-lg object-cover flex-shrink-0 bg-gray-100">
+            <div class="flex-1 min-w-0 py-1">
+              <h4 class="font-bold text-sm text-gray-900 truncate leading-tight">${p.title}</h4>
+              <p class="cr-text font-bold text-sm mt-1">${p.price.toLocaleString()} FCFA</p>
+              <p class="text-gray-500 text-xs mt-0.5">${p.city}</p>
+            </div>
+            <button onclick="event.stopPropagation(); app.toggleFavorite('${p.id}')" class="text-gray-400 hover:text-red-500 p-2 self-center transition"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        `).join('');
+      },
+
+      showMobileMenu() { const go = confirm('Go to Lister Portal to list your property?'); if (go) window.location.href = 'listers.html'; }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
+</body>
+</html>

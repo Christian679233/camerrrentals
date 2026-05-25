@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Portal - CamerRentals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .nav-btn { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; color: #94a3b8; border-radius: 0.5rem; width: 100%; transition: all 0.15s; border: none; background: none; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
+    .nav-btn:hover { background-color: #1e293b; color: white; }
+    .nav-btn.active { background-color: #1e293b; color: white; font-weight: 600; }
+    .color-input { width: 48px; height: 48px; border: none; border-radius: 0.5rem; cursor: pointer; padding: 0; overflow: hidden; }
+    .color-input::-webkit-color-swatch-wrapper { padding: 0; }
+    .color-input::-webkit-color-swatch { border: none; border-radius: 0.5rem; border: 2px solid #e5e7eb; }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-900">
+  <!-- Auth -->
+  <div id="authScreen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+      <div class="text-center mb-8">
+        <div class="w-16 h-16 bg-slate-800 rounded-xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4"><i class="fa-solid fa-shield-halved"></i></div>
+        <h2 class="text-2xl font-bold text-gray-900">Admin Portal</h2>
+        <p class="text-gray-500 mt-2">CamerRentals Management</p>
+      </div>
+      <form onsubmit="app.login(event)" class="space-y-4">
+        <input type="email" id="loginEmail" placeholder="Admin Email" required class="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-slate-200 text-sm">
+        <input type="password" id="loginPassword" placeholder="Password" required class="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-slate-200 text-sm">
+        <button type="submit" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition shadow-lg min-h-[48px]">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="hidden min-h-screen flex flex-col md:flex-row">
+    <aside class="w-full md:w-64 bg-slate-900 text-white flex-shrink-0 md:min-h-screen">
+      <div class="p-5 border-b border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-slate-900 font-bold">C</div>
+          <div><h1 class="font-bold leading-tight">CamerRentals</h1><p class="text-xs text-slate-400">Admin Portal</p></div>
+        </div>
+      </div>
+      <nav class="p-3 space-y-1">
+        <button onclick="app.nav('overview')" id="nav-overview" class="nav-btn active"><i class="fa-solid fa-chart-pie w-5 text-center"></i> Overview</button>
+        <button onclick="app.nav('properties')" id="nav-properties" class="nav-btn"><i class="fa-solid fa-building w-5 text-center"></i> Properties</button>
+        <button onclick="app.nav('users')" id="nav-users" class="nav-btn"><i class="fa-solid fa-users w-5 text-center"></i> Users</button>
+        <button onclick="app.nav('inquiries')" id="nav-inquiries" class="nav-btn"><i class="fa-solid fa-envelope w-5 text-center"></i> Inquiries</button>
+        <button onclick="app.nav('theme')" id="nav-theme" class="nav-btn"><i class="fa-solid fa-palette w-5 text-center"></i> Theme Editor</button>
+        <button onclick="app.nav('settings')" id="nav-settings" class="nav-btn"><i class="fa-solid fa-gear w-5 text-center"></i> Settings</button>
+        <div class="pt-3 mt-3 border-t border-slate-800">
+          <a href="index.html" class="nav-btn text-slate-400"><i class="fa-solid fa-arrow-left w-5 text-center"></i> View Site</a>
+          <button onclick="app.logout()" class="nav-btn text-red-400 hover:text-red-300"><i class="fa-solid fa-right-from-bracket w-5 text-center"></i> Sign Out</button>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto min-h-screen">
+      <header class="bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between sticky top-0 z-10">
+        <h2 id="pageTitle" class="text-lg md:text-xl font-bold">Overview</h2>
+        <div class="flex items-center gap-3">
+          <span id="adminName" class="text-sm text-gray-600 hidden sm:block font-medium"></span>
+          <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-700 font-bold text-sm" id="adminAvatar"></div>
+        </div>
+      </header>
+
+      <div class="p-4 md:p-6 max-w-7xl mx-auto">
+        <!-- Overview -->
+        <div id="view-overview" class="space-y-6">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+              <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-700 mb-3"><i class="fa-solid fa-building"></i></div>
+              <h3 class="text-2xl font-bold" id="ovTotalProps">0</h3><p class="text-gray-500 text-sm">Total Properties</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+              <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-700 mb-3"><i class="fa-solid fa-check-circle"></i></div>
+              <h3 class="text-2xl font-bold" id="ovActive">0</h3><p class="text-gray-500 text-sm">Active</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+              <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center text-amber-700 mb-3"><i class="fa-solid fa-clock"></i></div>
+              <h3 class="text-2xl font-bold" id="ovPending">0</h3><p class="text-gray-500 text-sm">Pending Review</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+              <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-700 mb-3"><i class="fa-solid fa-users"></i></div>
+              <h3 class="text-2xl font-bold" id="ovUsers">0</h3><p class="text-gray-500 text-sm">Total Users</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 class="font-bold text-lg mb-4">Properties by Type</h3>
+              <canvas id="typeChart" height="220"></canvas>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h3 class="font-bold text-lg mb-4">Properties by City</h3>
+              <canvas id="cityChart" height="220"></canvas>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+              <h3 class="font-bold text-lg">Recent Properties</h3>
+              <button onclick="app.nav('properties')" class="text-blue-700 font-semibold text-sm hover:underline">View All</button>
+            </div>
+            <div id="recentAdminProps" class="divide-y divide-gray-100"></div>
+          </div>
+        </div>
+
+        <!-- Properties -->
+        <div id="view-properties" class="hidden space-y-5">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <h3 class="font-bold text-xl">Property Management</h3>
+            <div class="flex gap-2 w-full sm:w-auto">
+              <button onclick="app.seedDemoData()" class="bg-amber-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-amber-700 transition text-sm whitespace-nowrap min-h-[44px]"><i class="fa-solid fa-seedling mr-2"></i>Load Demo Data</button>
+              <select id="bulkStatus" onchange="app.filterAdminProperties()" class="border border-gray-300 rounded-lg px-4 py-2.5 outline-none focus:border-blue-500 text-sm bg-white">
+                <option value="">All Status</option><option value="active">Active</option><option value="pending">Pending</option><option value="sold">Sold</option><option value="archived">Archived</option>
+              </select>
+            </div>
+          </div>
+          <div id="adminPropertiesTable" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"></div>
+        </div>
+
+        <!-- Users -->
+        <div id="view-users" class="hidden space-y-5">
+          <h3 class="font-bold text-xl">User Management</h3>
+          <div id="usersTable" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"></div>
+        </div>
+
+        <!-- Inquiries -->
+        <div id="view-inquiries" class="hidden space-y-5">
+          <h3 class="font-bold text-xl">All Inquiries</h3>
+          <div id="adminInquiries" class="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100"></div>
+        </div>
+
+        <!-- Theme Editor -->
+        <div id="view-theme" class="hidden max-w-4xl mx-auto space-y-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-700"><i class="fa-solid fa-palette"></i></div>
+              <div><h3 class="font-bold text-xl">Theme Editor</h3><p class="text-sm text-gray-500">Customize colors and appearance of the marketplace</p></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
+                  <div><p class="font-semibold text-sm">Primary Brand Color</p><p class="text-xs text-gray-500">Buttons, links, badges</p></div>
+                  <div class="flex items-center gap-3"><input type="text" id="themeBrandText" class="w-24 text-sm border border-gray-200 rounded px-2 py-1 font-mono" readonly><input type="color" id="themeBrand" class="color-input" value="#0056D2"></div>
+                </div>
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
+                  <div><p class="font-semibold text-sm">Brand Dark (Hover)</p><p class="text-xs text-gray-500">Button hover states</p></div>
+                  <div class="flex items-center gap-3"><input type="text" id="themeBrandDarkText" class="w-24 text-sm border border-gray-200 rounded px-2 py-1 font-mono" readonly><input type="color" id="themeBrandDark" class="color-input" value="#1d4ed8"></div>
+                </div>
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
+                  <div><p class="font-semibold text-sm">Accent Color</p><p class="text-xs text-gray-500">Success, checkmarks</p></div>
+                  <div class="flex items-center gap-3"><input type="text" id="themeAccentText" class="w-24 text-sm border border-gray-200 rounded px-2 py-1 font-mono" readonly><input type="color" id="themeAccent" class="color-input" value="#10B981"></div>
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
+                  <div><p class="font-semibold text-sm">Hero Gradient Start</p><p class="text-xs text-gray-500">Top of hero section</p></div>
+                  <div class="flex items-center gap-3"><input type="text" id="themeHeroFromText" class="w-24 text-sm border border-gray-200 rounded px-2 py-1 font-mono" readonly><input type="color" id="themeHeroFrom" class="color-input" value="#1e3a8a"></div>
+                </div>
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
+                  <div><p class="font-semibold text-sm">Hero Gradient End</p><p class="text-xs text-gray-500">Bottom of hero section</p></div>
+                  <div class="flex items-center gap-3"><input type="text" id="themeHeroToText" class="w-24 text-sm border border-gray-200 rounded px-2 py-1 font-mono" readonly><input type="color" id="themeHeroTo" class="color-input" value="#1e40af"></div>
+                </div>
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100">
+                  <div><p class="font-semibold text-sm">Page Background</p><p class="text-xs text-gray-500">Behind all content</p></div>
+                  <div class="flex items-center gap-3"><input type="text" id="themePageText" class="w-24 text-sm border border-gray-200 rounded px-2 py-1 font-mono" readonly><input type="color" id="themePage" class="color-input" value="#F9FAFB"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-6">
+              <h4 class="font-bold text-sm mb-3 uppercase tracking-wide text-gray-500">Live Preview</h4>
+              <div id="themePreview" class="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                <div class="h-24 flex items-center justify-center text-white font-bold text-lg" id="previewHero">Hero Section</div>
+                <div class="p-6 space-y-4" id="previewBody">
+                  <div class="flex items-center gap-3">
+                    <button class="px-5 py-2.5 rounded-lg text-white font-semibold text-sm shadow-md" id="previewBtn">Primary Button</button>
+                    <span class="text-sm font-semibold" id="previewText">Brand Text Link</span>
+                  </div>
+                  <div class="p-4 rounded-lg border border-gray-100 shadow-sm" id="previewCard">
+                    <p class="text-sm text-gray-600">Card background preview</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+              <button onclick="app.saveTheme()" class="flex-1 bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition shadow-lg min-h-[48px]">Save Theme</button>
+              <button onclick="app.resetTheme()" class="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition min-h-[48px]">Reset to Default</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Settings -->
+        <div id="view-settings" class="hidden max-w-xl mx-auto space-y-5">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <h3 class="font-bold text-xl mb-6">System Settings</h3>
+            <div class="space-y-4">
+              <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div><p class="font-semibold text-sm">Auto-approve Listings</p><p class="text-xs text-gray-500">New listings are automatically activated</p></div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="autoApprove" class="sr-only peer">
+                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-700"></div>
+                </label>
+              </div>
+              <button onclick="app.purgeAllData()" class="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition min-h-[48px]">Purge All Data</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://your-project.supabase.co';
+    const SUPABASE_ANON_KEY = 'your-anon-key';
+    let supabaseClient;
+
+    const DEFAULT_THEME = { brand:'#0056D2', brandDark:'#1d4ed8', brandLight:'#EFF6FF', heroFrom:'#1e3a8a', heroVia:'#1e3a8a', heroTo:'#1e40af', page:'#F9FAFB', card:'#ffffff', text:'#111827', accent:'#10B981' };
+
+    const app = {
+      user: null, profile: null, properties: [], users: [], inquiries: [], charts: {}, currentTheme: {...DEFAULT_THEME},
+
+      init() {
+        if (SUPABASE_URL.includes('your-project')) { alert('Configure your Supabase credentials in this file first.'); return; }
+        try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); this.checkAuth(); } catch(e) { console.error(e); }
+      },
+
+      async checkAuth() {
+        const { data:{session} } = await supabaseClient.auth.getSession();
+        if (session) {
+          this.user = session.user;
+          const { data: prof } = await supabaseClient.from('profiles').select('*').eq('id', this.user.id).single();
+          if (prof?.role !== 'admin') { alert('Access denied. Admin only.'); await supabaseClient.auth.signOut(); return; }
+          this.profile = prof; this.showDashboard(); this.loadAllData();
+        } else this.showAuth();
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session) {
+            this.user = session.user;
+            supabaseClient.from('profiles').select('*').eq('id', this.user.id).single().then(({data}) => {
+              if (data?.role !== 'admin') { alert('Access denied.'); supabaseClient.auth.signOut(); return; }
+              this.profile = data; this.showDashboard(); this.loadAllData();
+            });
+          }
+        });
+      },
+
+      showAuth() { document.getElementById('authScreen').classList.remove('hidden'); document.getElementById('dashboard').classList.add('hidden'); },
+      showDashboard() {
+        document.getElementById('authScreen').classList.add('hidden'); document.getElementById('dashboard').classList.remove('hidden');
+        document.getElementById('adminName').textContent = this.profile?.full_name || this.user?.email;
+        document.getElementById('adminAvatar').textContent = (this.profile?.full_name || this.user?.email || 'A').charAt(0).toUpperCase();
+        this.nav('overview');
+      },
+
+      async login(e) { e.preventDefault(); const { error } = await supabaseClient.auth.signInWithPassword({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value }); if (error) alert(error.message); },
+      async logout() { await supabaseClient.auth.signOut(); location.reload(); },
+
+      nav(view) {
+        ['overview','properties','users','inquiries','theme','settings'].forEach(v => {
+          document.getElementById('view-'+v).classList.add('hidden');
+          const btn = document.getElementById('nav-'+v); if (btn) btn.classList.remove('active');
+        });
+        document.getElementById('view-'+view).classList.remove('hidden');
+        const ab = document.getElementById('nav-'+view); if (ab) ab.classList.add('active');
+        const titles = {overview:'Overview', properties:'Properties', users:'Users', inquiries:'Inquiries', theme:'Theme Editor', settings:'Settings'};
+        document.getElementById('pageTitle').textContent = titles[view];
+        if (view === 'overview') this.loadOverview();
+        if (view === 'properties') this.renderAdminProperties();
+        if (view === 'users') this.renderUsers();
+        if (view === 'inquiries') this.renderInquiries();
+        if (view === 'theme') this.loadThemeEditor();
+      },
+
+      async loadAllData() { await this.loadOverview(); },
+
+      async loadOverview() {
+        const { data: props } = await supabaseClient.from('properties').select('*').order('created_at', {ascending:false});
+        this.properties = props || [];
+        const { data: users } = await supabaseClient.from('profiles').select('*');
+        this.users = users || [];
+        const { data: inqs } = await supabaseClient.from('inquiries').select('*').order('created_at', {ascending:false});
+        this.inquiries = inqs || [];
+
+        document.getElementById('ovTotalProps').textContent = this.properties.length;
+        document.getElementById('ovActive').textContent = this.properties.filter(p => p.status === 'active').length;
+        document.getElementById('ovPending').textContent = this.properties.filter(p => p.status === 'pending').length;
+        document.getElementById('ovUsers').textContent = this.users.length;
+
+        const recent = this.properties.slice(0, 5);
+        document.getElementById('recentAdminProps').innerHTML = recent.map(p => `
+          <div class="p-4 flex items-center gap-4 hover:bg-gray-50 transition">
+            <img src="${p.featured_image || 'https://via.placeholder.com/100?text=No+Image'}" class="w-16 h-16 rounded-lg object-cover bg-gray-100 flex-shrink-0">
+            <div class="flex-1 min-w-0"><h4 class="font-bold text-sm truncate">${p.title}</h4><p class="text-gray-500 text-xs">${p.city} • ${p.price.toLocaleString()} FCFA • ${p.property_type}</p></div>
+            <span class="px-3 py-1 rounded-full text-xs font-bold capitalize ${p.status==='active'?'bg-green-100 text-green-800':'bg-amber-100 text-amber-800'}">${p.status}</span>
+          </div>`).join('') || '<div class="p-6 text-center text-gray-500">No properties yet.</div>';
+
+        this.renderCharts();
+      },
+
+      renderCharts() {
+        const typeCounts = {}; this.properties.forEach(p => { typeCounts[p.property_type] = (typeCounts[p.property_type]||0)+1; });
+        const typeLabels = Object.keys(typeCounts).map(k => k.replace('_',' ').replace(/\b\w/g, l => l.toUpperCase()));
+        if (this.charts.type) this.charts.type.destroy();
+        this.charts.type = new Chart(document.getElementById('typeChart'), {
+          type: 'doughnut', data: { labels: typeLabels, datasets: [{ data: Object.values(typeCounts), backgroundColor: ['#3B82F6','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F97316','#6366F1','#14B8A6'] }] },
+          options: { responsive: true, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } } }
+        });
+
+        const cityCounts = {}; this.properties.forEach(p => { cityCounts[p.city] = (cityCounts[p.city]||0)+1; });
+        if (this.charts.city) this.charts.city.destroy();
+        this.charts.city = new Chart(document.getElementById('cityChart'), {
+          type: 'bar', data: { labels: Object.keys(cityCounts), datasets: [{ label: 'Properties', data: Object.values(cityCounts), backgroundColor: '#3B82F6', borderRadius: 6 }] },
+          options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
+        });
+      },
+
+      renderAdminProperties() {
+        const container = document.getElementById('adminPropertiesTable');
+        const statusFilter = document.getElementById('bulkStatus').value;
+        let filtered = this.properties; if (statusFilter) filtered = filtered.filter(p => p.status === statusFilter);
+        if (!filtered.length) { container.innerHTML = '<div class="p-8 text-center text-gray-500">No properties found.</div>'; return; }
+
+        const sc = {active:'bg-green-100 text-green-800', pending:'bg-amber-100 text-amber-800', sold:'bg-blue-100 text-blue-800', archived:'bg-gray-100 text-gray-800'};
+        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="px-5 py-4">Property</th><th class="px-5 py-4 hidden md:table-cell">Lister</th><th class="px-5 py-4">Price</th><th class="px-5 py-4">Status</th><th class="px-5 py-4 text-right">Actions</th></tr></thead><tbody class="divide-y divide-gray-100">${filtered.map(p => {
+          const lister = this.users.find(u => u.id === p.owner_id);
+          return `<tr class="hover:bg-gray-50 transition"><td class="px-5 py-4"><div class="flex items-center gap-3"><img src="${p.featured_image || 'https://via.placeholder.com/60?text=No+Image'}" class="w-12 h-12 rounded-lg object-cover bg-gray-100 flex-shrink-0"><div class="min-w-0"><p class="font-bold text-gray-900 truncate">${p.title}</p><p class="text-gray-500 text-xs">${p.city} • ${p.property_type}</p></div></div></td>
+          <td class="px-5 py-4 hidden md:table-cell text-gray-600">${lister?.full_name || lister?.email || 'Unknown'}</td>
+          <td class="px-5 py-4 font-semibold whitespace-nowrap">${p.price.toLocaleString()} FCFA</td>
+          <td class="px-5 py-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${sc[p.status]||'bg-gray-100'} capitalize">${p.status}</span></td>
+          <td class="px-5 py-4 text-right whitespace-nowrap space-x-2">
+            ${p.status==='pending'?`<button onclick="app.setStatus('${p.id}','active')" class="text-green-700 hover:text-green-900 font-medium text-xs bg-green-50 px-3 py-1.5 rounded border border-green-200">Approve</button>`:''}
+            ${p.status==='active'?`<button onclick="app.setStatus('${p.id}','archived')" class="text-gray-700 hover:text-gray-900 font-medium text-xs bg-gray-100 px-3 py-1.5 rounded border border-gray-200">Archive</button>`:''}
+            <button onclick="app.deleteProperty('${p.id}')" class="text-red-600 hover:text-red-800 font-medium text-xs">Delete</button>
+          </td></tr>`;
+        }).join('')}</tbody></table></div>`;
+      },
+
+      filterAdminProperties() { this.renderAdminProperties(); },
+
+      async setStatus(id, status) {
+        const { error } = await supabaseClient.from('properties').update({ status }).eq('id', id);
+        if (error) alert('Error: ' + error.message);
+        else { const p = this.properties.find(x => x.id === id); if (p) p.status = status; this.renderAdminProperties(); this.loadOverview(); }
+      },
+
+      async deleteProperty(id) { if (!confirm('Delete permanently?')) return; const { error } = await supabaseClient.from('properties').delete().eq('id', id); if (error) alert('Error: ' + error.message); else { this.properties = this.properties.filter(p => p.id !== id); this.renderAdminProperties(); this.loadOverview(); } },
+
+      renderUsers() {
+        const container = document.getElementById('usersTable');
+        if (!this.users.length) { container.innerHTML = '<div class="p-8 text-center text-gray-500">No users found.</div>'; return; }
+        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="px-5 py-4">User</th><th class="px-5 py-4">Role</th><th class="px-5 py-4 hidden sm:table-cell">Phone</th><th class="px-5 py-4 text-right">Actions</th></tr></thead><tbody class="divide-y divide-gray-100">${this.users.map(u => `
+          <tr class="hover:bg-gray-50 transition"><td class="px-5 py-4"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold">${(u.full_name || u.email).charAt(0).toUpperCase()}</div><div class="min-w-0"><p class="font-bold text-gray-900">${u.full_name || 'No name'}</p><p class="text-gray-500 text-xs truncate">${u.email}</p></div></div></td>
+          <td class="px-5 py-4"><span class="px-3 py-1 rounded-full text-xs font-bold capitalize ${u.role==='admin'?'bg-purple-100 text-purple-800':'bg-blue-100 text-blue-800'}">${u.role}</span></td>
+          <td class="px-5 py-4 hidden sm:table-cell text-gray-600">${u.phone || '-'}</td>
+          <td class="px-5 py-4 text-right"><select onchange="app.setRole('${u.id}', this.value)" class="border border-gray-300 rounded px-3 py-1.5 text-xs outline-none bg-white"><option value="lister" ${u.role==='lister'?'selected':''}>Lister</option><option value="admin" ${u.role==='admin'?'selected':''}>Admin</option></select></td></tr>`).join('')}</tbody></table></div>`;
+      },
+
+      async setRole(id, role) { const { error } = await supabaseClient.from('profiles').update({ role }).eq('id', id); if (error) alert('Error: ' + error.message); else { const u = this.users.find(x => x.id === id); if (u) u.role = role; this.renderUsers(); } },
+
+      renderInquiries() {
+        const container = document.getElementById('adminInquiries');
+        if (!this.inquiries.length) { container.innerHTML = '<div class="p-6 text-center text-gray-500">No inquiries yet.</div>'; return; }
+        container.innerHTML = this.inquiries.map(i => {
+          const prop = this.properties.find(p => p.id === i.property_id);
+          return `<div class="p-5 hover:bg-gray-50 transition"><div class="flex items-start justify-between mb-2"><div><h4 class="font-bold text-gray-900">${i.sender_name}</h4><p class="text-sm text-blue-700 font-medium">Re: ${prop?.title || 'Unknown Property'}</p></div><span class="text-xs text-gray-400">${new Date(i.created_at).toLocaleDateString()}</span></div><p class="text-gray-600 text-sm mb-3 leading-relaxed">${i.message}</p><div class="flex flex-wrap items-center gap-4 text-sm"><a href="tel:${i.sender_phone}" class="text-blue-700 hover:underline font-medium"><i class="fa-solid fa-phone mr-1"></i>${i.sender_phone}</a><a href="mailto:${i.sender_email}" class="text-blue-700 hover:underline font-medium"><i class="fa-solid fa-envelope mr-1"></i>${i.sender_email}</a></div></div>`;
+        }).join('');
+      },
+
+      // Theme Editor
+      async loadThemeEditor() {
+        let theme = JSON.parse(localStorage.getItem('camrent_theme') || 'null');
+        if (supabaseClient && !theme) {
+          try {
+            const { data } = await supabaseClient.from('settings').select('value').eq('key','theme').single();
+            if (data?.value) { theme = data.value; localStorage.setItem('camrent_theme', JSON.stringify(theme)); }
+          } catch(e) {}
+        }
+        if (!theme) theme = {...DEFAULT_THEME};
+        this.currentTheme = theme;
+
+        const map = { themeBrand:'brand', themeBrandDark:'brandDark', themeAccent:'accent', themeHeroFrom:'heroFrom', themeHeroTo:'heroTo', themePage:'page' };
+        Object.entries(map).forEach(([id, key]) => {
+          const el = document.getElementById(id);
+          const txt = document.getElementById(id+'Text');
+          if (el) { el.value = theme[key]; el.oninput = () => { theme[key] = el.value; if (txt) txt.value = el.value; this.updatePreview(); }; }
+          if (txt) txt.value = theme[key];
+        });
+        this.updatePreview();
+      },
+
+      updatePreview() {
+        const t = this.currentTheme;
+        document.getElementById('previewHero').style.background = `linear-gradient(to bottom right, ${t.heroFrom}, ${t.heroTo})`;
+        const btn = document.getElementById('previewBtn'); btn.style.backgroundColor = t.brand; btn.onmouseenter = () => btn.style.backgroundColor = t.brandDark; btn.onmouseleave = () => btn.style.backgroundColor = t.brand;
+        document.getElementById('previewText').style.color = t.brand;
+        document.getElementById('previewCard').style.backgroundColor = t.card;
+        document.getElementById('previewBody').style.backgroundColor = t.page;
+      },
+
+      async saveTheme() {
+        localStorage.setItem('camrent_theme', JSON.stringify(this.currentTheme));
+        if (supabaseClient) {
+          await supabaseClient.from('settings').upsert({ key:'theme', value:this.currentTheme, updated_at:new Date().toISOString() }, { onConflict:'key' });
+        }
+        alert('Theme saved! Changes will reflect on the marketplace immediately.');
+      },
+
+      resetTheme() {
+        this.currentTheme = {...DEFAULT_THEME};
+        const map = { themeBrand:'brand', themeBrandDark:'brandDark', themeAccent:'accent', themeHeroFrom:'heroFrom', themeHeroTo:'heroTo', themePage:'page' };
+        Object.entries(map).forEach(([id, key]) => { const el = document.getElementById(id); const txt = document.getElementById(id+'Text'); if (el) el.value = DEFAULT_THEME[key]; if (txt) txt.value = DEFAULT_THEME[key]; });
+        this.updatePreview();
+        this.saveTheme();
+      },
+
+      async seedDemoData() {
+        if (!confirm('Insert 12 demo properties?')) return;
+        const demoData = [
+          { title:'Modern Studio in Bonapriso', description:'Fully furnished studio in Bonapriso with AC and security.', property_type:'studio', listing_type:'rent', price:150000, city:'Douala', quarter:'Bonapriso', address:'Rue du Studio, Bonapriso', bedrooms:1, bathrooms:1, area_sqm:45, status:'active', featured_image:'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800', amenities:['AC','Internet','Security'], contact_phone:'+237 677 77 77 77' },
+          { title:'Luxury 3-Bed Apartment - Bastos', description:'Spacious apartment in Bastos, Yaoundé. Perfect for families.', property_type:'apartment', listing_type:'rent', price:450000, city:'Yaoundé', quarter:'Bastos', address:'Avenue Bastos', bedrooms:3, bathrooms:2, area_sqm:180, status:'active', featured_image:'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800', amenities:['AC','Generator','Parking','Garden'], contact_phone:'+237 699 99 99 99' },
+          { title:'Affordable Single Room - Deido', description:'Clean single room near Marché Deido.', property_type:'single_room', listing_type:'rent', price:75000, city:'Douala', quarter:'Deido', address:'Rue Deido', bedrooms:1, bathrooms:1, area_sqm:20, status:'active', featured_image:'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=800', amenities:['Fan','Shared Kitchen'], contact_phone:'+237 655 55 55 55' },
+          { title:'Prime Office Space - Akwa', description:'Modern office in Akwa business district.', property_type:'office', listing_type:'rent', price:300000, city:'Douala', quarter:'Akwa', address:'Bd de la Liberté', bathrooms:2, area_sqm:120, status:'active', featured_image:'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800', amenities:['AC','Internet','Parking'], contact_phone:'+237 666 66 66 66' },
+          { title:'Commercial Store - Makepe', description:'High-traffic retail space.', property_type:'store', listing_type:'rent', price:200000, city:'Douala', quarter:'Makepe', address:'Rue Makepe', area_sqm:60, status:'active', featured_image:'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800', amenities:['Storage','Security'], contact_phone:'+237 688 88 88 88' },
+          { title:'Beachfront Hotel Room - Kribi', description:'Ocean view with pool access.', property_type:'hotel', listing_type:'rent', price:35000, city:'Kribi', quarter:'Kribi Plage', address:'Avenue de la Plage', bedrooms:1, bathrooms:1, area_sqm:35, status:'active', featured_image:'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800', amenities:['Pool','AC','Restaurant','WiFi'], contact_phone:'+237 677 11 11 11' },
+          { title:'Short Stay Apartment - Odza', description:'Near Nsimalen Airport.', property_type:'short_stay', listing_type:'rent', price:25000, city:'Yaoundé', quarter:'Odza', address:'Rue Odza', bedrooms:2, bathrooms:1, area_sqm:70, status:'active', featured_image:'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=800', amenities:['Furnished','Kitchen','AC','WiFi'], contact_phone:'+237 699 22 22 22' },
+          { title:'Industrial Workshop - Bonaberi', description:'Large workshop with 3-phase power.', property_type:'workshop', listing_type:'rent', price:180000, city:'Douala', quarter:'Bonaberi', address:'Zone Industrielle', bathrooms:2, area_sqm:400, status:'active', featured_image:'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800', amenities:['3-Phase Power','Loading Dock','Security'], contact_phone:'+237 666 33 33 33' },
+          { title:'Family House - Buea', description:'Quiet residential house near the university.', property_type:'house', listing_type:'rent', price:280000, city:'Buea', quarter:'Molyko', address:'Molyko', bedrooms:4, bathrooms:3, area_sqm:250, status:'active', featured_image:'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800', amenities:['AC','Parking','Garden','Furnished'], contact_phone:'+237 677 44 44 44' },
+          { title:'Villa with Pool - Limbe', description:'Ocean-view villa with private pool.', property_type:'villa', listing_type:'rent', price:850000, city:'Limbe', quarter:'Down Beach', address:'Down Beach', bedrooms:5, bathrooms:4, area_sqm:400, status:'active', featured_image:'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800', amenities:['Pool','AC','Parking','Garden','Security','Ocean View'], contact_phone:'+237 699 55 55 55' },
+          { title:'Boutique Space - Bamenda', description:'Newly built boutique in commercial district.', property_type:'store', listing_type:'rent', price:120000, city:'Bamenda', quarter:'Commercial Ave', address:'Commercial Avenue', area_sqm:40, status:'active', featured_image:'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800', amenities:['Storage','Security'], contact_phone:'+237 677 66 66 66' },
+          { title:'Plot of Land - Yaoundé', description:'500m² plot in secure gated area. Titre foncier available.', property_type:'land', listing_type:'rent', price:150000, city:'Yaoundé', quarter:'Essos', address:'Essos', area_sqm:500, status:'active', featured_image:'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800', amenities:['Titre Foncier','Gated','Water Access'], contact_phone:'+237 677 88 88 88' }
+        ];
+        const { error } = await supabaseClient.from('properties').insert(demoData.map(d => ({...d, owner_id: this.user.id})));
+        if (error) alert('Error: ' + error.message); else { alert('Demo data loaded!'); this.loadOverview(); this.nav('properties'); }
+      },
+
+      async purgeAllData() {
+        if (!confirm('WARNING: Delete ALL data? This cannot be undone!')) return;
+        await supabaseClient.from('inquiries').delete().neq('id','0');
+        await supabaseClient.from('favorites').delete().neq('id','0');
+        await supabaseClient.from('properties').delete().neq('id','0');
+        alert('All data purged.'); this.loadOverview();
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
+</body>
+</html>

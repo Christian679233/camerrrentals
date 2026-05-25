@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Content Editor - CamerRentals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .nav-btn { display:flex; align-items:center; gap:0.75rem; padding:0.75rem 1rem; color:#94a3b8; border-radius:0.5rem; width:100%; transition:all 0.15s; border:none; background:none; font-size:0.875rem; font-weight:500; cursor:pointer; }
+    .nav-btn:hover { background-color:#1e293b; color:white; }
+    .nav-btn.active { background-color:#1e293b; color:white; font-weight:600; }
+    .form-label { display:block; font-size:0.875rem; font-weight:600; color:#374151; margin-bottom:0.5rem; }
+    .form-input { width:100%; border:1px solid #D1D5DB; border-radius:0.5rem; padding:0.75rem 1rem; outline:none; transition:all 0.15s; font-size:0.875rem; }
+    .form-input:focus { border-color:#2563EB; box-shadow:0 0 0 3px rgba(37,99,235,0.1); }
+    .form-textarea { min-height:100px; resize:vertical; }
+    .preview-box { background:#f8fafc; border:1px dashed #cbd5e1; border-radius:0.75rem; padding:1rem; font-size:0.875rem; color:#475569; }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-900">
+  <!-- Auth -->
+  <div id="authScreen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+      <div class="text-center mb-8">
+        <div class="w-16 h-16 bg-slate-800 rounded-xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4"><i class="fa-solid fa-pen-to-square"></i></div>
+        <h2 class="text-2xl font-bold text-gray-900">Content Editor</h2>
+        <p class="text-gray-500 mt-2">Edit all site content & text</p>
+      </div>
+      <form onsubmit="app.login(event)" class="space-y-4">
+        <input type="email" id="loginEmail" placeholder="Admin Email" required class="form-input">
+        <input type="password" id="loginPassword" placeholder="Password" required class="form-input">
+        <button type="submit" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition shadow-lg min-h-[48px]">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="hidden min-h-screen flex flex-col md:flex-row">
+    <aside class="w-full md:w-64 bg-slate-900 text-white flex-shrink-0 md:min-h-screen">
+      <div class="p-5 border-b border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center text-slate-900 font-bold">C</div>
+          <div><h1 class="font-bold leading-tight">CamerRentals</h1><p class="text-xs text-slate-400">Content Editor</p></div>
+        </div>
+      </div>
+      <nav class="p-3 space-y-1">
+        <button onclick="app.nav('hero')" id="nav-hero" class="nav-btn active"><i class="fa-solid fa-image w-5 text-center"></i> Hero Banner</button>
+        <button onclick="app.nav('brand')" id="nav-brand" class="nav-btn"><i class="fa-solid fa-copyright w-5 text-center"></i> Brand & SEO</button>
+        <button onclick="app.nav('featured')" id="nav-featured" class="nav-btn"><i class="fa-solid fa-star w-5 text-center"></i> Featured Section</button>
+        <button onclick="app.nav('footer')" id="nav-footer" class="nav-btn"><i class="fa-solid fa-shoe-prints w-5 text-center"></i> Footer & Contact</button>
+        <button onclick="app.nav('labels')" id="nav-labels" class="nav-btn"><i class="fa-solid fa-tag w-5 text-center"></i> Button Labels</button>
+        <div class="pt-3 mt-3 border-t border-slate-800">
+          <a href="index.html" target="_blank" class="nav-btn text-slate-400"><i class="fa-solid fa-eye w-5 text-center"></i> Preview Site</a>
+          <a href="admin.html" class="nav-btn text-slate-400"><i class="fa-solid fa-shield-halved w-5 text-center"></i> Admin Portal</a>
+          <button onclick="app.logout()" class="nav-btn text-red-400 hover:text-red-300"><i class="fa-solid fa-right-from-bracket w-5 text-center"></i> Sign Out</button>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto min-h-screen">
+      <header class="bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between sticky top-0 z-10">
+        <h2 id="pageTitle" class="text-lg md:text-xl font-bold">Hero Banner</h2>
+        <div class="flex items-center gap-3">
+          <span id="userName" class="text-sm text-gray-600 hidden sm:block font-medium"></span>
+          <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-700 font-bold text-sm" id="userAvatar"></div>
+        </div>
+      </header>
+
+      <div class="p-4 md:p-6 max-w-4xl mx-auto">
+        <!-- Hero Section -->
+        <div id="view-hero" class="space-y-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-700"><i class="fa-solid fa-image"></i></div>
+              <div><h3 class="font-bold text-lg">Hero Banner Content</h3><p class="text-sm text-gray-500">Main banner text and background</p></div>
+            </div>
+            <div class="space-y-5">
+              <div>
+                <label class="form-label">Hero Title</label>
+                <input type="text" id="hero_title" class="form-input" placeholder="Find Your Perfect Rental in Cameroon">
+                <p class="text-xs text-gray-500 mt-1">Large headline on the home banner</p>
+              </div>
+              <div>
+                <label class="form-label">Hero Subtitle</label>
+                <textarea id="hero_subtitle" rows="3" class="form-input form-textarea" placeholder="Rooms, apartments, offices..."></textarea>
+                <p class="text-xs text-gray-500 mt-1">Text below the headline</p>
+              </div>
+              <div>
+                <label class="form-label">Hero Background Image URL</label>
+                <input type="text" id="hero_image" class="form-input" placeholder="https://...">
+                <p class="text-xs text-gray-500 mt-1">Unsplash or any direct image link. Leave empty to use gradient.</p>
+                <div id="heroPreview" class="mt-3 h-40 rounded-xl bg-cover bg-center border border-gray-200 hidden"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Brand & SEO -->
+        <div id="view-brand" class="hidden space-y-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-700"><i class="fa-solid fa-copyright"></i></div>
+              <div><h3 class="font-bold text-lg">Brand & SEO</h3><p class="text-sm text-gray-500">Site name, browser tab, search results</p></div>
+            </div>
+            <div class="space-y-5">
+              <div>
+                <label class="form-label">Brand Name</label>
+                <input type="text" id="brand_name" class="form-input" placeholder="CamerRentals">
+                <p class="text-xs text-gray-500 mt-1">Appears in logo and navbar</p>
+              </div>
+              <div>
+                <label class="form-label">Browser Tab Title (SEO)</label>
+                <input type="text" id="seo_title" class="form-input" placeholder="CamerRentals - Cameroon Rentals">
+              </div>
+              <div>
+                <label class="form-label">Meta Description (SEO)</label>
+                <textarea id="seo_description" rows="3" class="form-input form-textarea" placeholder="Search engine description..."></textarea>
+                <p class="text-xs text-gray-500 mt-1">Shown in Google search results</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Featured Section -->
+        <div id="view-featured" class="hidden space-y-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center text-amber-700"><i class="fa-solid fa-star"></i></div>
+              <div><h3 class="font-bold text-lg">Featured Section</h3><p class="text-sm text-gray-500">Listings area headings</p></div>
+            </div>
+            <div class="space-y-5">
+              <div>
+                <label class="form-label">Section Title</label>
+                <input type="text" id="featured_title" class="form-input" placeholder="Featured Rentals">
+                <p class="text-xs text-gray-500 mt-1">Heading above property cards</p>
+              </div>
+              <div>
+                <label class="form-label">Empty State Title</label>
+                <input type="text" id="empty_state_title" class="form-input" placeholder="No properties found">
+              </div>
+              <div>
+                <label class="form-label">Empty State Message</label>
+                <input type="text" id="empty_state_text" class="form-input" placeholder="Try adjusting your filters...">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer & Contact -->
+        <div id="view-footer" class="hidden space-y-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center text-green-700"><i class="fa-solid fa-shoe-prints"></i></div>
+              <div><h3 class="font-bold text-lg">Footer & Contact</h3><p class="text-sm text-gray-500">Bottom of every page</p></div>
+            </div>
+            <div class="space-y-5">
+              <div>
+                <label class="form-label">About Text (Footer Column 1)</label>
+                <textarea id="footer_about" rows="3" class="form-input form-textarea" placeholder="Cameroon's premier rental marketplace..."></textarea>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label class="form-label">Contact Email</label>
+                  <input type="email" id="contact_email" class="form-input" placeholder="support@camerrrentals.cm">
+                </div>
+                <div>
+                  <label class="form-label">Contact Phone</label>
+                  <input type="tel" id="contact_phone" class="form-input" placeholder="+237 6XX XX XX XX">
+                </div>
+              </div>
+              <div>
+                <label class="form-label">WhatsApp Number</label>
+                <input type="tel" id="contact_whatsapp" class="form-input" placeholder="+237 677777777">
+                <p class="text-xs text-gray-500 mt-1">Used for WhatsApp buttons (numbers only, no spaces)</p>
+              </div>
+              <div>
+                <label class="form-label">Copyright Text</label>
+                <input type="text" id="copyright_text" class="form-input" placeholder="© 2026 CamerRentals...">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Button Labels -->
+        <div id="view-labels" class="hidden space-y-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center text-pink-700"><i class="fa-solid fa-tag"></i></div>
+              <div><h3 class="font-bold text-lg">Button & UI Labels</h3><p class="text-sm text-gray-500">Text for buttons, drawers, modals</p></div>
+            </div>
+            <div class="space-y-5">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label class="form-label">Search Placeholder</label>
+                  <input type="text" id="search_placeholder" class="form-input">
+                </div>
+                <div>
+                  <label class="form-label">"List Property" Button</label>
+                  <input type="text" id="list_property_btn" class="form-input">
+                </div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label class="form-label">Favorites Drawer Title</label>
+                  <input type="text" id="favorites_title" class="form-input">
+                </div>
+                <div>
+                  <label class="form-label">Favorites Empty Text</label>
+                  <input type="text" id="favorites_empty" class="form-input">
+                </div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label class="form-label">Contact Modal Title</label>
+                  <input type="text" id="contact_modal_title" class="form-input">
+                </div>
+                <div>
+                  <label class="form-label">Contact Modal Subtitle</label>
+                  <input type="text" id="contact_modal_subtitle" class="form-input">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Save Bar -->
+        <div class="sticky bottom-4 mt-8 bg-white rounded-xl shadow-lg border border-gray-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 z-20">
+          <div class="flex items-center gap-2 text-sm text-gray-600">
+            <i class="fa-solid fa-circle-info text-blue-600"></i>
+            <span id="saveStatus">Changes unsaved</span>
+          </div>
+          <div class="flex gap-3 w-full sm:w-auto">
+            <button onclick="app.loadContent()" class="px-5 py-2.5 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition text-sm min-h-[44px]">Reset</button>
+            <button onclick="app.saveContent()" class="flex-1 sm:flex-none bg-blue-700 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-blue-800 transition shadow-md text-sm min-h-[44px]">
+              <i class="fa-solid fa-floppy-disk mr-2"></i>Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://your-project.supabase.co';
+    const SUPABASE_ANON_KEY = 'your-anon-key';
+    let supabaseClient;
+
+    const DEFAULT_CONTENT = {
+      hero_title: "Find Your Perfect Rental in Cameroon",
+      hero_subtitle: "Rooms, apartments, offices, hotels, workshops & more in Douala, Yaoundé, and across Cameroon.",
+      hero_image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1600&q=80",
+      brand_name: "CamerRentals",
+      featured_title: "Featured Rentals",
+      footer_about: "Cameroon's premier rental marketplace. Find your next home, office, or commercial space.",
+      contact_email: "support@camerrrentals.cm",
+      contact_phone: "+237 6XX XX XX XX",
+      contact_whatsapp: "+237 677777777",
+      seo_title: "CamerRentals - Cameroon Rentals",
+      seo_description: "Find apartments, studios, offices, hotels, and land for rent across Cameroon. Douala, Yaoundé, Bamenda & more.",
+      empty_state_title: "No properties found",
+      empty_state_text: "Try adjusting your filters or search criteria.",
+      favorites_title: "Favorites",
+      favorites_empty: "No favorites yet",
+      contact_modal_title: "Contact Agent",
+      contact_modal_subtitle: "Send a message and the agent will reply shortly.",
+      search_placeholder: "City, neighborhood, or address",
+      list_property_btn: "List Your Property",
+      copyright_text: "© 2026 CamerRentals. All rights reserved."
+    };
+
+    const app = {
+      user: null, profile: null, content: {...DEFAULT_CONTENT},
+
+      init() {
+        if (SUPABASE_URL.includes('your-project')) { alert('Configure your Supabase credentials in this file first.'); return; }
+        try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); this.checkAuth(); } catch(e) { console.error(e); }
+      },
+
+      async checkAuth() {
+        const { data:{session} } = await supabaseClient.auth.getSession();
+        if (session) {
+          this.user = session.user;
+          const { data: prof } = await supabaseClient.from('profiles').select('*').eq('id', this.user.id).single();
+          if (prof?.role !== 'admin') { alert('Access denied. Admin only.'); await supabaseClient.auth.signOut(); return; }
+          this.profile = prof; this.showDashboard(); this.loadContent();
+        } else this.showAuth();
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session) {
+            this.user = session.user;
+            supabaseClient.from('profiles').select('*').eq('id', this.user.id).single().then(({data}) => {
+              if (data?.role !== 'admin') { alert('Access denied.'); supabaseClient.auth.signOut(); return; }
+              this.profile = data; this.showDashboard(); this.loadContent();
+            });
+          }
+        });
+      },
+
+      showAuth() { document.getElementById('authScreen').classList.remove('hidden'); document.getElementById('dashboard').classList.add('hidden'); },
+      showDashboard() {
+        document.getElementById('authScreen').classList.add('hidden'); document.getElementById('dashboard').classList.remove('hidden');
+        document.getElementById('userName').textContent = this.profile?.full_name || this.user?.email;
+        document.getElementById('userAvatar').textContent = (this.profile?.full_name || this.user?.email || 'A').charAt(0).toUpperCase();
+        this.nav('hero');
+      },
+
+      async login(e) { e.preventDefault(); const { error } = await supabaseClient.auth.signInWithPassword({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value }); if (error) alert(error.message); },
+      async logout() { await supabaseClient.auth.signOut(); location.reload(); },
+
+      nav(view) {
+        ['hero','brand','featured','footer','labels'].forEach(v => {
+          document.getElementById('view-'+v).classList.add('hidden');
+          document.getElementById('nav-'+v)?.classList.remove('active');
+        });
+        document.getElementById('view-'+view).classList.remove('hidden');
+        document.getElementById('nav-'+view)?.classList.add('active');
+        const titles = {hero:'Hero Banner', brand:'Brand & SEO', featured:'Featured Section', footer:'Footer & Contact', labels:'Button Labels'};
+        document.getElementById('pageTitle').textContent = titles[view];
+      },
+
+      async loadContent() {
+        let data = null;
+        if (supabaseClient) {
+          try {
+            const { data: row } = await supabaseClient.from('settings').select('value').eq('key','site_content').single();
+            if (row?.value) data = row.value;
+          } catch(e) {}
+        }
+        if (!data) data = JSON.parse(localStorage.getItem('camrent_site_content') || 'null');
+        if (data) this.content = {...DEFAULT_CONTENT, ...data};
+        else this.content = {...DEFAULT_CONTENT};
+
+        // Fill all inputs
+        Object.keys(this.content).forEach(key => {
+          const el = document.getElementById(key);
+          if (el) el.value = this.content[key] || '';
+        });
+
+        // Hero preview
+        const heroImg = document.getElementById('hero_image')?.value;
+        const preview = document.getElementById('heroPreview');
+        if (heroImg && preview) { preview.style.backgroundImage = `url(${heroImg})`; preview.classList.remove('hidden'); }
+        else if (preview) preview.classList.add('hidden');
+
+        document.getElementById('saveStatus').textContent = 'Loaded from database';
+        document.getElementById('saveStatus').className = 'text-green-600 font-medium';
+      },
+
+      async saveContent() {
+        // Gather from inputs
+        Object.keys(this.content).forEach(key => {
+          const el = document.getElementById(key);
+          if (el) this.content[key] = el.value;
+        });
+
+        localStorage.setItem('camrent_site_content', JSON.stringify(this.content));
+
+        if (supabaseClient) {
+          const { error } = await supabaseClient.from('settings').upsert(
+            { key:'site_content', value:this.content, updated_at:new Date().toISOString() },
+            { onConflict:'key' }
+          );
+          if (error) { alert('Error saving to cloud: ' + error.message); return; }
+        }
+
+        document.getElementById('saveStatus').textContent = 'Saved! Refresh index.html to see changes.';
+        document.getElementById('saveStatus').className = 'text-green-600 font-medium';
+        setTimeout(() => {
+          document.getElementById('saveStatus').textContent = 'All changes saved';
+          document.getElementById('saveStatus').className = 'text-gray-600';
+        }, 3000);
+      }
+    };
+
+    // Live hero preview
+    document.getElementById('hero_image')?.addEventListener('input', (e) => {
+      const preview = document.getElementById('heroPreview');
+      if (e.target.value && preview) { preview.style.backgroundImage = `url(${e.target.value})`; preview.classList.remove('hidden'); }
+      else if (preview) preview.classList.add('hidden');
+    });
+
+    document.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
+</body>
+</html>

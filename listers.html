@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lister Portal - CamerRentals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root { --cr-brand: #0056D2; --cr-brand-dark: #1d4ed8; --cr-brand-light: #EFF6FF; }
+    .cr-btn { background-color: var(--cr-brand); color: white; }
+    .cr-btn:hover { background-color: var(--cr-brand-dark); }
+    .cr-text { color: var(--cr-brand); }
+    .cr-bg { background-color: var(--cr-brand); }
+    .cr-bg-light { background-color: var(--cr-brand-light); }
+    .sidebar-link { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; color: #4B5563; border-radius: 0.5rem; width: 100%; transition: all 0.15s; border: none; background: none; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
+    .sidebar-link:hover { background-color: var(--cr-brand-light); color: var(--cr-brand); }
+    .sidebar-link.active { background-color: var(--cr-brand-light); color: var(--cr-brand); font-weight: 600; }
+    .form-input { width: 100%; border: 1px solid #D1D5DB; border-radius: 0.5rem; padding: 0.75rem 1rem; outline: none; transition: all 0.15s; font-size: 0.875rem; }
+    .form-input:focus { border-color: var(--cr-brand); box-shadow: 0 0 0 3px rgba(0,86,210,0.1); }
+    .form-label { display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-900">
+  <!-- Auth Screen -->
+  <div id="authScreen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-900 via-blue-800 to-blue-900">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+      <div class="text-center mb-8">
+        <div class="w-16 h-16 cr-bg rounded-xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">C</div>
+        <h2 class="text-2xl font-bold text-gray-900">Lister Portal</h2>
+        <p class="text-gray-500 mt-2">Manage your rental listings</p>
+      </div>
+      
+      <div id="authForms">
+        <form id="loginForm" onsubmit="app.login(event)" class="space-y-4">
+          <input type="email" id="loginEmail" placeholder="Email address" required class="form-input">
+          <input type="password" id="loginPassword" placeholder="Password" required class="form-input">
+          <button type="submit" class="w-full cr-btn font-bold py-3 rounded-lg transition shadow-lg min-h-[48px]">Sign In</button>
+        </form>
+        
+        <form id="registerForm" onsubmit="app.register(event)" class="space-y-4 hidden">
+          <input type="text" id="regName" placeholder="Full Name" required class="form-input">
+          <input type="email" id="regEmail" placeholder="Email address" required class="form-input">
+          <input type="tel" id="regPhone" placeholder="Phone (+237 6XX XX XX XX)" class="form-input">
+          <input type="password" id="regPassword" placeholder="Password (min 6 chars)" required minlength="6" class="form-input">
+          <button type="submit" class="w-full cr-btn font-bold py-3 rounded-lg transition shadow-lg min-h-[48px]">Create Account</button>
+        </form>
+        
+        <div class="mt-6 text-center">
+          <button onclick="app.toggleAuthMode()" id="authToggle" class="cr-text font-semibold hover:underline text-sm">Don't have an account? Sign up</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="hidden min-h-screen flex flex-col md:flex-row">
+    <!-- Sidebar -->
+    <aside class="w-full md:w-64 bg-white border-r border-gray-200 flex-shrink-0 md:min-h-screen">
+      <div class="p-5 border-b border-gray-100">
+        <a href="index.html" class="flex items-center gap-3">
+          <div class="w-10 h-10 cr-bg rounded-lg flex items-center justify-center text-white font-bold">C</div>
+          <div>
+            <h1 class="font-bold text-lg leading-tight">CamerRentals</h1>
+            <p class="text-xs text-gray-500">Lister Portal</p>
+          </div>
+        </a>
+      </div>
+      <nav class="p-3 space-y-1">
+        <button onclick="app.nav('dashboard')" id="nav-dashboard" class="sidebar-link active"><i class="fa-solid fa-chart-line w-5 text-center"></i> Dashboard</button>
+        <button onclick="app.nav('listings')" id="nav-listings" class="sidebar-link"><i class="fa-solid fa-building w-5 text-center"></i> My Listings</button>
+        <button onclick="app.nav('add')" id="nav-add" class="sidebar-link"><i class="fa-solid fa-plus w-5 text-center"></i> Add Property</button>
+        <button onclick="app.nav('inquiries')" id="nav-inquiries" class="sidebar-link"><i class="fa-solid fa-envelope w-5 text-center"></i> Inquiries</button>
+        <button onclick="app.nav('profile')" id="nav-profile" class="sidebar-link"><i class="fa-solid fa-user w-5 text-center"></i> Profile</button>
+        <div class="pt-3 mt-3 border-t border-gray-100">
+          <a href="index.html" class="sidebar-link text-gray-500"><i class="fa-solid fa-arrow-left w-5 text-center"></i> Back to Site</a>
+          <button onclick="app.logout()" class="sidebar-link text-red-600 hover:bg-red-50 hover:text-red-700"><i class="fa-solid fa-right-from-bracket w-5 text-center"></i> Sign Out</button>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto min-h-screen">
+      <header class="bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between sticky top-0 z-10">
+        <h2 id="pageTitle" class="text-lg md:text-xl font-bold">Dashboard</h2>
+        <div class="flex items-center gap-3">
+          <span id="userName" class="text-sm text-gray-600 hidden sm:block font-medium"></span>
+          <div class="w-10 h-10 cr-bg-light rounded-full flex items-center justify-center cr-text font-bold text-sm" id="userAvatar"></div>
+        </div>
+      </header>
+
+      <div class="p-4 md:p-6 max-w-6xl mx-auto">
+        <!-- Dashboard -->
+        <div id="view-dashboard" class="space-y-6">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+              <div class="flex items-center justify-between mb-3">
+                <div class="w-11 h-11 cr-bg-light rounded-lg flex items-center justify-center cr-text"><i class="fa-solid fa-building text-lg"></i></div>
+              </div>
+              <h3 class="text-2xl font-bold" id="statTotal">0</h3>
+              <p class="text-gray-500 text-sm mt-1">Total Listings</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+              <div class="flex items-center justify-between mb-3">
+                <div class="w-11 h-11 bg-green-100 rounded-lg flex items-center justify-center text-green-700"><i class="fa-solid fa-check-circle text-lg"></i></div>
+              </div>
+              <h3 class="text-2xl font-bold" id="statActive">0</h3>
+              <p class="text-gray-500 text-sm mt-1">Active</p>
+            </div>
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+              <div class="flex items-center justify-between mb-3">
+                <div class="w-11 h-11 bg-amber-100 rounded-lg flex items-center justify-center text-amber-700"><i class="fa-solid fa-envelope text-lg"></i></div>
+              </div>
+              <h3 class="text-2xl font-bold" id="statInquiries">0</h3>
+              <p class="text-gray-500 text-sm mt-1">New Inquiries</p>
+            </div>
+          </div>
+          
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+              <h3 class="font-bold text-lg">Recent Listings</h3>
+              <button onclick="app.nav('listings')" class="cr-text font-semibold text-sm hover:underline">View All</button>
+            </div>
+            <div id="recentListings" class="divide-y divide-gray-100"></div>
+          </div>
+        </div>
+
+        <!-- Listings -->
+        <div id="view-listings" class="hidden space-y-5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-bold text-xl">My Properties</h3>
+            <button onclick="app.nav('add')" class="cr-btn px-4 py-2.5 rounded-lg font-semibold transition text-sm flex items-center gap-2 shadow-md min-h-[44px]">
+              <i class="fa-solid fa-plus"></i> Add Property
+            </button>
+          </div>
+          <div id="myListingsTable" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"></div>
+        </div>
+
+        <!-- Add/Edit -->
+        <div id="view-add" class="hidden max-w-3xl mx-auto">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 md:p-8">
+            <h3 class="font-bold text-xl mb-6" id="formTitle">Add New Property</h3>
+            <form onsubmit="app.saveProperty(event)" id="propertyForm" class="space-y-5">
+              <input type="hidden" id="propId">
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="md:col-span-2">
+                  <label class="form-label">Property Title</label>
+                  <input type="text" id="propTitle" required class="form-input" placeholder="e.g. Modern Studio in Bonapriso">
+                </div>
+                
+                <div>
+                  <label class="form-label">Property Type</label>
+                  <select id="propType" required class="form-input">
+                    <option value="single_room">Single Room</option>
+                    <option value="studio">Studio</option>
+                    <option value="apartment">Apartment</option>
+                    <option value="house">House</option>
+                    <option value="villa">Villa</option>
+                    <option value="hotel">Hotel</option>
+                    <option value="short_stay">Short Stay</option>
+                    <option value="store">Store / Boutique</option>
+                    <option value="office">Office Space</option>
+                    <option value="workshop">Workshop</option>
+                    <option value="land">Land</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label class="form-label">Listing Type</label>
+                  <select id="propListingType" class="form-input">
+                    <option value="rent">For Rent</option>
+                    <option value="sale">For Sale</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label class="form-label">Price (FCFA)</label>
+                  <input type="number" id="propPrice" required min="0" class="form-input" placeholder="e.g. 150000">
+                </div>
+                
+                <div>
+                  <label class="form-label">City</label>
+                  <select id="propCity" required class="form-input">
+                    <option value="">Select City</option>
+                    <option>Douala</option><option>Yaoundé</option><option>Bamenda</option>
+                    <option>Bafoussam</option><option>Kribi</option><option>Limbe</option>
+                    <option>Buea</option><option>Garoua</option><option>Maroua</option>
+                    <option>Ngaoundere</option><option>Ebolowa</option><option>Bertoua</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label class="form-label">Quarter / Neighborhood</label>
+                  <input type="text" id="propQuarter" class="form-input" placeholder="e.g. Bonapriso">
+                </div>
+                
+                <div class="md:col-span-2">
+                  <label class="form-label">Full Address</label>
+                  <input type="text" id="propAddress" class="form-input" placeholder="Street address">
+                </div>
+                
+                <div>
+                  <label class="form-label">Bedrooms</label>
+                  <input type="number" id="propBedrooms" min="0" class="form-input" placeholder="0">
+                </div>
+                
+                <div>
+                  <label class="form-label">Bathrooms</label>
+                  <input type="number" id="propBathrooms" min="0" class="form-input" placeholder="0">
+                </div>
+                
+                <div>
+                  <label class="form-label">Area (m²)</label>
+                  <input type="number" id="propArea" min="0" class="form-input" placeholder="e.g. 45">
+                </div>
+                
+                <div>
+                  <label class="form-label">Contact Phone</label>
+                  <input type="tel" id="propPhone" class="form-input" placeholder="+237 6XX XX XX XX">
+                </div>
+                
+                <div class="md:col-span-2">
+                  <label class="form-label">Description</label>
+                  <textarea id="propDesc" rows="4" class="form-input" placeholder="Describe your property in detail..."></textarea>
+                </div>
+                
+                <div class="md:col-span-2">
+                  <label class="form-label">Amenities (comma separated)</label>
+                  <input type="text" id="propAmenities" class="form-input" placeholder="AC, Parking, Internet, Generator, Security...">
+                </div>
+                
+                <div class="md:col-span-2">
+                  <label class="form-label">Featured Image</label>
+                  <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-500 transition cursor-pointer bg-gray-50" onclick="document.getElementById('propImage').click()">
+                    <input type="file" id="propImage" accept="image/*" class="hidden" onchange="app.handleImagePreview(this)">
+                    <div id="imagePreviewArea">
+                      <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400 mb-2"></i>
+                      <p class="text-gray-600 text-sm font-medium">Click to upload property image</p>
+                      <p class="text-gray-400 text-xs mt-1">PNG, JPG up to 5MB</p>
+                    </div>
+                    <img id="imagePreview" class="hidden max-h-56 mx-auto rounded-lg object-cover shadow-md">
+                  </div>
+                </div>
+              </div>
+              
+              <div class="flex flex-col sm:flex-row items-center gap-3 pt-4">
+                <button type="submit" class="flex-1 w-full sm:w-auto cr-btn font-bold py-3 rounded-lg transition shadow-lg min-h-[48px]">Save Property</button>
+                <button type="button" onclick="app.nav('listings')" class="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition min-h-[48px]">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Inquiries -->
+        <div id="view-inquiries" class="hidden space-y-5">
+          <h3 class="font-bold text-xl">Inquiries</h3>
+          <div id="inquiriesList" class="bg-white rounded-xl shadow-sm border border-gray-100 divide-y divide-gray-100"></div>
+        </div>
+
+        <!-- Profile -->
+        <div id="view-profile" class="hidden max-w-xl mx-auto">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <h3 class="font-bold text-xl mb-6">Profile Settings</h3>
+            <form onsubmit="app.saveProfile(event)" id="profileForm" class="space-y-4">
+              <div>
+                <label class="form-label">Full Name</label>
+                <input type="text" id="profName" required class="form-input">
+              </div>
+              <div>
+                <label class="form-label">Phone</label>
+                <input type="tel" id="profPhone" class="form-input" placeholder="+237 6XX XX XX XX">
+              </div>
+              <button type="submit" class="w-full cr-btn font-bold py-3 rounded-lg transition shadow-lg min-h-[48px]">Update Profile</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://your-project.supabase.co';
+    const SUPABASE_ANON_KEY = 'your-anon-key';
+    let supabaseClient;
+
+    const app = {
+      user: null, profile: null, properties: [], inquiries: [], currentImageBase64: null, editingId: null,
+
+      init() {
+        this.loadTheme();
+        if (SUPABASE_URL.includes('your-project')) { alert('Configure your Supabase credentials in this file first.'); return; }
+        try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); this.checkAuth(); } catch(e) { console.error(e); }
+      },
+
+      loadTheme() {
+        const theme = JSON.parse(localStorage.getItem('camrent_theme') || '{}');
+        if (theme.brand) document.documentElement.style.setProperty('--cr-brand', theme.brand);
+        if (theme.brandDark) document.documentElement.style.setProperty('--cr-brand-dark', theme.brandDark);
+        if (theme.brandLight) document.documentElement.style.setProperty('--cr-brand-light', theme.brandLight);
+      },
+
+      async checkAuth() {
+        const { data:{session} } = await supabaseClient.auth.getSession();
+        if (session) { this.user = session.user; await this.loadProfile(); this.showDashboard(); this.loadData(); }
+        else this.showAuth();
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session) { this.user = session.user; this.loadProfile().then(() => { this.showDashboard(); this.loadData(); }); }
+        });
+      },
+
+      async loadProfile() {
+        const { data, error } = await supabaseClient.from('profiles').select('*').eq('id', this.user.id).single();
+        if (data) this.profile = data;
+        else if (error && error.code === 'PGRST116') {
+          const { data: newProf } = await supabaseClient.from('profiles').insert({ id: this.user.id, email: this.user.email, full_name: this.user.user_metadata?.full_name || '', role: 'lister' }).select().single();
+          this.profile = newProf;
+        }
+        this.updateUserUI();
+      },
+
+      updateUserUI() {
+        const name = this.profile?.full_name || this.user?.email?.split('@')[0] || 'User';
+        document.getElementById('userName').textContent = name;
+        document.getElementById('userAvatar').textContent = name.charAt(0).toUpperCase();
+      },
+
+      showAuth() { document.getElementById('authScreen').classList.remove('hidden'); document.getElementById('dashboard').classList.add('hidden'); },
+      showDashboard() { document.getElementById('authScreen').classList.add('hidden'); document.getElementById('dashboard').classList.remove('hidden'); this.nav('dashboard'); },
+
+      toggleAuthMode() {
+        const loginForm = document.getElementById('loginForm');
+        const regForm = document.getElementById('registerForm');
+        const toggle = document.getElementById('authToggle');
+        if (loginForm.classList.contains('hidden')) { loginForm.classList.remove('hidden'); regForm.classList.add('hidden'); toggle.textContent = "Don't have an account? Sign up"; }
+        else { loginForm.classList.add('hidden'); regForm.classList.remove('hidden'); toggle.textContent = "Already have an account? Sign in"; }
+      },
+
+      async login(e) { e.preventDefault(); const { error } = await supabaseClient.auth.signInWithPassword({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value }); if (error) alert(error.message); },
+      async register(e) { e.preventDefault(); const { error } = await supabaseClient.auth.signUp({ email: document.getElementById('regEmail').value, password: document.getElementById('regPassword').value, options: { data: { full_name: document.getElementById('regName').value, phone: document.getElementById('regPhone').value } } }); if (error) alert(error.message); else alert('Account created! Check your email to verify.'); },
+      async logout() { await supabaseClient.auth.signOut(); },
+
+      nav(view) {
+        ['dashboard','listings','add','inquiries','profile'].forEach(v => {
+          document.getElementById('view-'+v).classList.add('hidden');
+          document.getElementById('nav-'+v)?.classList.remove('active');
+        });
+        document.getElementById('view-'+view).classList.remove('hidden');
+        document.getElementById('nav-'+view)?.classList.add('active');
+        const titles = {dashboard:'Dashboard', listings:'My Listings', add:'Add Property', inquiries:'Inquiries', profile:'Profile'};
+        document.getElementById('pageTitle').textContent = titles[view];
+        if (view === 'listings') this.renderListings();
+        if (view === 'inquiries') this.loadInquiries();
+        if (view === 'dashboard') this.loadDashboard();
+        if (view === 'add') this.resetForm();
+      },
+
+      async loadData() { await this.loadDashboard(); await this.loadInquiries(); },
+
+      async loadDashboard() {
+        const { data: props } = await supabaseClient.from('properties').select('*').eq('owner_id', this.user.id).order('created_at', {ascending:false});
+        this.properties = props || [];
+        document.getElementById('statTotal').textContent = this.properties.length;
+        document.getElementById('statActive').textContent = this.properties.filter(p => p.status === 'active').length;
+        const myIds = this.properties.map(p => p.id);
+        if (myIds.length) {
+          const { data: inqs } = await supabaseClient.from('inquiries').select('*').in('property_id', myIds).eq('status','new');
+          document.getElementById('statInquiries').textContent = inqs?.length || 0;
+        } else document.getElementById('statInquiries').textContent = '0';
+
+        const recent = this.properties.slice(0, 5);
+        const container = document.getElementById('recentListings');
+        if (!recent.length) container.innerHTML = '<div class="p-6 text-center text-gray-500">No listings yet. Add your first property!</div>';
+        else container.innerHTML = recent.map(p => {
+          const sc = {active:'bg-green-100 text-green-800', pending:'bg-amber-100 text-amber-800', sold:'bg-blue-100 text-blue-800', archived:'bg-gray-100 text-gray-800'};
+          return `<div class="p-4 flex items-center gap-4 hover:bg-gray-50 transition"><img src="${p.featured_image || 'https://via.placeholder.com/100?text=No+Image'}" class="w-16 h-16 rounded-lg object-cover bg-gray-100 flex-shrink-0"><div class="flex-1 min-w-0"><h4 class="font-bold text-sm truncate">${p.title}</h4><p class="text-gray-500 text-xs">${p.city} • ${p.price.toLocaleString()} FCFA</p></div><span class="px-3 py-1 rounded-full text-xs font-bold ${sc[p.status]||'bg-gray-100'} capitalize">${p.status}</span></div>`;
+        }).join('');
+      },
+
+      renderListings() {
+        const container = document.getElementById('myListingsTable');
+        if (!this.properties.length) { container.innerHTML = '<div class="p-8 text-center text-gray-500"><i class="fa-solid fa-building text-4xl mb-3 text-gray-300"></i><p>No properties listed yet.</p><button onclick="app.nav(\'add\')" class="mt-4 cr-text font-semibold hover:underline">Add your first property</button></div>'; return; }
+        const sc = {active:'bg-green-100 text-green-800', pending:'bg-amber-100 text-amber-800', sold:'bg-blue-100 text-blue-800', archived:'bg-gray-100 text-gray-800'};
+        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm text-left"><thead class="bg-gray-50 text-gray-600 font-semibold border-b"><tr><th class="px-5 py-4">Property</th><th class="px-5 py-4 hidden sm:table-cell">Type</th><th class="px-5 py-4">Price</th><th class="px-5 py-4">Status</th><th class="px-5 py-4 text-right">Actions</th></tr></thead><tbody class="divide-y divide-gray-100">${this.properties.map(p => `
+          <tr class="hover:bg-gray-50 transition"><td class="px-5 py-4"><div class="flex items-center gap-3"><img src="${p.featured_image || 'https://via.placeholder.com/60?text=No+Image'}" class="w-12 h-12 rounded-lg object-cover bg-gray-100 flex-shrink-0"><div class="min-w-0"><p class="font-bold text-gray-900 truncate">${p.title}</p><p class="text-gray-500 text-xs">${p.city}${p.quarter? ', '+p.quarter:''}</p></div></div></td>
+          <td class="px-5 py-4 hidden sm:table-cell capitalize text-gray-600">${p.property_type.replace('_',' ')}</td>
+          <td class="px-5 py-4 font-semibold whitespace-nowrap">${p.price.toLocaleString()} FCFA</td>
+          <td class="px-5 py-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold ${sc[p.status]||'bg-gray-100'} capitalize">${p.status}</span></td>
+          <td class="px-5 py-4 text-right whitespace-nowrap"><button onclick="app.editProperty('${p.id}')" class="cr-text hover:underline font-medium text-sm mr-3">Edit</button><button onclick="app.deleteProperty('${p.id}')" class="text-red-600 hover:text-red-800 font-medium text-sm">Delete</button></td></tr>`).join('')}</tbody></table></div>`;
+      },
+
+      handleImagePreview(input) {
+        const file = input.files[0]; if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { alert('Image too large. Max 5MB.'); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => { this.currentImageBase64 = e.target.result; document.getElementById('imagePreview').src = e.target.result; document.getElementById('imagePreview').classList.remove('hidden'); document.getElementById('imagePreviewArea').classList.add('hidden'); };
+        reader.readAsDataURL(file);
+      },
+
+      resetForm() {
+        document.getElementById('propertyForm').reset(); document.getElementById('propId').value = ''; document.getElementById('formTitle').textContent = 'Add New Property';
+        document.getElementById('imagePreview').classList.add('hidden'); document.getElementById('imagePreviewArea').classList.remove('hidden');
+        this.currentImageBase64 = null; this.editingId = null;
+      },
+
+      async saveProperty(e) {
+        e.preventDefault(); if (!this.user) return;
+        const formData = {
+          title: document.getElementById('propTitle').value, property_type: document.getElementById('propType').value,
+          listing_type: document.getElementById('propListingType').value, price: parseInt(document.getElementById('propPrice').value),
+          city: document.getElementById('propCity').value, quarter: document.getElementById('propQuarter').value,
+          address: document.getElementById('propAddress').value, bedrooms: parseInt(document.getElementById('propBedrooms').value) || 0,
+          bathrooms: parseInt(document.getElementById('propBathrooms').value) || 0, area_sqm: parseInt(document.getElementById('propArea').value) || null,
+          description: document.getElementById('propDesc').value, amenities: document.getElementById('propAmenities').value.split(',').map(s=>s.trim()).filter(Boolean),
+          contact_phone: document.getElementById('propPhone').value, contact_whatsapp: document.getElementById('propPhone').value,
+          owner_id: this.user.id, status: 'pending'
+        };
+        if (this.currentImageBase64) {
+          try {
+            const fileName = `${this.user.id}/${Date.now()}.jpg`;
+            const { data: upData, error: upErr } = await supabaseClient.storage.from('property-images').upload(fileName, this.dataURLtoBlob(this.currentImageBase64), { contentType: 'image/jpeg' });
+            if (!upErr) { const { data: { publicUrl } } = supabaseClient.storage.from('property-images').getPublicUrl(fileName); formData.featured_image = publicUrl; }
+            else formData.featured_image = this.currentImageBase64;
+          } catch(err) { formData.featured_image = this.currentImageBase64; }
+        }
+        if (this.editingId) {
+          const { error } = await supabaseClient.from('properties').update(formData).eq('id', this.editingId);
+          if (error) alert('Error updating: ' + error.message); else { alert('Property updated!'); this.nav('listings'); }
+        } else {
+          const { error } = await supabaseClient.from('properties').insert(formData);
+          if (error) alert('Error saving: ' + error.message); else { alert('Property submitted! It will be reviewed by admin shortly.'); this.nav('listings'); }
+        }
+        this.loadDashboard();
+      },
+
+      dataURLtoBlob(dataurl) { const arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1], bstr = atob(arr[1]); let n = bstr.length; const u8arr = new Uint8Array(n); while(n--) u8arr[n] = bstr.charCodeAt(n); return new Blob([u8arr], {type:mime}); },
+
+      editProperty(id) {
+        const p = this.properties.find(x => x.id === id); if (!p) return;
+        this.editingId = id; document.getElementById('propId').value = id; document.getElementById('formTitle').textContent = 'Edit Property';
+        document.getElementById('propTitle').value = p.title; document.getElementById('propType').value = p.property_type;
+        document.getElementById('propListingType').value = p.listing_type || 'rent'; document.getElementById('propPrice').value = p.price;
+        document.getElementById('propCity').value = p.city; document.getElementById('propQuarter').value = p.quarter || '';
+        document.getElementById('propAddress').value = p.address || ''; document.getElementById('propBedrooms').value = p.bedrooms || '';
+        document.getElementById('propBathrooms').value = p.bathrooms || ''; document.getElementById('propArea').value = p.area_sqm || '';
+        document.getElementById('propDesc').value = p.description || ''; document.getElementById('propAmenities').value = (p.amenities || []).join(', ');
+        document.getElementById('propPhone').value = p.contact_phone || '';
+        if (p.featured_image) { document.getElementById('imagePreview').src = p.featured_image; document.getElementById('imagePreview').classList.remove('hidden'); document.getElementById('imagePreviewArea').classList.add('hidden'); this.currentImageBase64 = p.featured_image; }
+        this.nav('add');
+      },
+
+      async deleteProperty(id) { if (!confirm('Delete this property permanently?')) return; const { error } = await supabaseClient.from('properties').delete().eq('id', id); if (error) alert('Error: ' + error.message); else { this.properties = this.properties.filter(p => p.id !== id); this.renderListings(); this.loadDashboard(); } },
+
+      async loadInquiries() {
+        const myIds = this.properties.map(p => p.id);
+        if (!myIds.length) { document.getElementById('inquiriesList').innerHTML = '<div class="p-6 text-center text-gray-500">No inquiries yet.</div>'; return; }
+        const { data } = await supabaseClient.from('inquiries').select('*, properties(title)').in('property_id', myIds).order('created_at', {ascending:false});
+        const container = document.getElementById('inquiriesList');
+        if (!data || !data.length) { container.innerHTML = '<div class="p-6 text-center text-gray-500">No inquiries yet.</div>'; return; }
+        container.innerHTML = data.map(i => `
+          <div class="p-5 hover:bg-gray-50 transition"><div class="flex items-start justify-between mb-2"><div><h4 class="font-bold text-gray-900">${i.sender_name}</h4><p class="text-sm cr-text font-medium">Re: ${i.properties?.title || 'Property'}</p></div><span class="text-xs text-gray-400">${new Date(i.created_at).toLocaleDateString()}</span></div>
+          <p class="text-gray-600 text-sm mb-3 leading-relaxed">${i.message}</p>
+          <div class="flex flex-wrap items-center gap-4 text-sm"><a href="tel:${i.sender_phone}" class="cr-text hover:underline font-medium"><i class="fa-solid fa-phone mr-1"></i>${i.sender_phone}</a><a href="mailto:${i.sender_email}" class="cr-text hover:underline font-medium"><i class="fa-solid fa-envelope mr-1"></i>${i.sender_email}</a></div></div>`).join('');
+      },
+
+      async saveProfile(e) {
+        e.preventDefault();
+        const { error } = await supabaseClient.from('profiles').update({ full_name: document.getElementById('profName').value, phone: document.getElementById('profPhone').value }).eq('id', this.user.id);
+        if (error) alert('Error: ' + error.message); else { alert('Profile updated!'); this.profile = { ...this.profile, full_name: document.getElementById('profName').value, phone: document.getElementById('profPhone').value }; this.updateUserUI(); }
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
+</body>
+</html>
