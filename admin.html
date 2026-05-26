@@ -15,22 +15,42 @@
     .color-input { width: 48px; height: 48px; border: none; border-radius: 0.5rem; cursor: pointer; padding: 0; overflow: hidden; }
     .color-input::-webkit-color-swatch-wrapper { padding: 0; }
     .color-input::-webkit-color-swatch { border: none; border-radius: 0.5rem; border: 2px solid #e5e7eb; }
+    .form-input { width: 100%; border: 1px solid #D1D5DB; border-radius: 0.5rem; padding: 0.75rem 1rem; outline: none; transition: all 0.15s; font-size: 0.875rem; }
+    .form-input:focus { border-color: #2563EB; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .form-label { display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem; }
   </style>
 </head>
 <body class="bg-gray-50 font-sans text-gray-900">
-  <!-- Auth -->
+  <!-- Auth Screen -->
   <div id="authScreen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
       <div class="text-center mb-8">
         <div class="w-16 h-16 bg-slate-800 rounded-xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4"><i class="fa-solid fa-shield-halved"></i></div>
         <h2 class="text-2xl font-bold text-gray-900">Admin Portal</h2>
-        <p class="text-gray-500 mt-2">CamerRentals Management</p>
+        <p class="text-gray-500 mt-2">Manage your rental marketplace</p>
       </div>
-      <form onsubmit="app.login(event)" class="space-y-4">
-        <input type="email" id="loginEmail" placeholder="Admin Email" required class="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-slate-200 text-sm">
-        <input type="password" id="loginPassword" placeholder="Password" required class="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-slate-200 text-sm">
-        <button type="submit" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition shadow-lg min-h-[48px]">Sign In</button>
-      </form>
+      
+      <div id="authForms">
+        <!-- Login Form -->
+        <form id="loginForm" onsubmit="app.login(event)" class="space-y-4">
+          <input type="email" id="loginEmail" placeholder="Email address" required class="form-input">
+          <input type="password" id="loginPassword" placeholder="Password" required class="form-input">
+          <button type="submit" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition shadow-lg min-h-[48px]">Sign In</button>
+        </form>
+        
+        <!-- Register Form -->
+        <form id="registerForm" onsubmit="app.register(event)" class="space-y-4 hidden">
+          <input type="text" id="regName" placeholder="Full Name" required class="form-input">
+          <input type="email" id="regEmail" placeholder="Email address" required class="form-input">
+          <input type="tel" id="regPhone" placeholder="Phone (+237 6XX XX XX XX)" class="form-input">
+          <input type="password" id="regPassword" placeholder="Password (min 6 chars)" required minlength="6" class="form-input">
+          <button type="submit" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition shadow-lg min-h-[48px]">Create Admin Account</button>
+        </form>
+        
+        <div class="mt-6 text-center">
+          <button onclick="app.toggleAuthMode()" id="authToggle" class="text-blue-700 font-semibold hover:underline text-sm">Don't have an account? Sign up as admin</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -139,7 +159,7 @@
           <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
             <div class="flex items-center gap-3 mb-6">
               <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-700"><i class="fa-solid fa-palette"></i></div>
-              <div><h3 class="font-bold text-xl">Theme Editor</h3><p class="text-sm text-gray-500">Customize colors and appearance of the marketplace</p></div>
+              <div><h3 class="font-bold text-xl">Theme Editor</h3><p class="text-sm text-gray-500">Customize colors and appearance</p></div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -259,7 +279,41 @@
         this.nav('overview');
       },
 
+      toggleAuthMode() {
+        const loginForm = document.getElementById('loginForm');
+        const regForm = document.getElementById('registerForm');
+        const toggle = document.getElementById('authToggle');
+        if (loginForm.classList.contains('hidden')) { loginForm.classList.remove('hidden'); regForm.classList.add('hidden'); toggle.textContent = "Don't have an account? Sign up as admin"; }
+        else { loginForm.classList.add('hidden'); regForm.classList.remove('hidden'); toggle.textContent = "Already have an account? Sign in"; }
+      },
+
       async login(e) { e.preventDefault(); const { error } = await supabaseClient.auth.signInWithPassword({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value }); if (error) alert(error.message); },
+      
+      async register(e) {
+        e.preventDefault();
+        const { data, error } = await supabaseClient.auth.signUp({
+          email: document.getElementById('regEmail').value,
+          password: document.getElementById('regPassword').value,
+          options: { data: { full_name: document.getElementById('regName').value, phone: document.getElementById('regPhone').value } }
+        });
+        if (error) { alert(error.message); return; }
+        
+        // Create admin profile immediately
+        if (data.user) {
+          const { error: profErr } = await supabaseClient.from('profiles').insert({
+            id: data.user.id,
+            email: data.user.email,
+            full_name: document.getElementById('regName').value,
+            phone: document.getElementById('regPhone').value,
+            role: 'admin'
+          });
+          if (profErr) console.error('Profile insert error:', profErr);
+        }
+        
+        alert('Admin account created! You can now sign in.');
+        this.toggleAuthMode();
+      },
+
       async logout() { await supabaseClient.auth.signOut(); location.reload(); },
 
       nav(view) {
@@ -373,7 +427,6 @@
         }).join('');
       },
 
-      // Theme Editor
       async loadThemeEditor() {
         let theme = JSON.parse(localStorage.getItem('camrent_theme') || 'null');
         if (supabaseClient && !theme) {
